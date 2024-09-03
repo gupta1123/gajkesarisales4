@@ -1,0 +1,35 @@
+@media (min-width: 1024px) {
+    .container-reports {
+        
+        position: relative;
+        left: 185px;
+        width: 92%;
+    }
+    .container-header-reports{
+        position: relative;
+        left: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container-reports {
+        width: 400px;
+    }
+
+}
+
+@media (max-width: 480px) {
+    .container-reports {
+        width: 400px;
+    }
+
+
+}
+
+/* Mobile-specific enhancements */
+@media (max-width: 640px) {
+    .container-reports {
+        width: 400px;
+    }
+
+}
