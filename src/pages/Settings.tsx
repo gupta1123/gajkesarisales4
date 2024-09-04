@@ -7,6 +7,7 @@ import Allowance from './Allowance';
 import WorkingDays from './WorkingDays';
 import Teams from './Teams';
 import TargetComponent from '@/components/Target';
+import Approval from './Approval';
 import { RootState } from '../store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import './Settings.css';
@@ -16,11 +17,12 @@ export default function Settings() {
     const authToken = useSelector((state: RootState) => state.auth.token);
 
     const tabs = [
-        { id: 'salary', label: 'Salary', component: <Salary authToken={authToken} /> },
-        { id: 'allowance', label: 'Allowance', component: <Allowance authToken={authToken} /> },
-        { id: 'workingDays', label: 'Working Days', component: <WorkingDays authToken={authToken} /> },
-        { id: 'team', label: 'Team', component: <Teams authToken={authToken} /> },
+        { id: 'salary', label: 'Salary', component: <Salary authToken={authToken || ''} /> },
+        { id: 'allowance', label: 'Allowance', component: <Allowance authToken={authToken || ''} /> },
+        { id: 'workingDays', label: 'Working Days', component: <WorkingDays authToken={authToken || ''} /> },
+        { id: 'team', label: 'Team', component: <Teams authToken={authToken || ''} /> },
         { id: 'target', label: 'Target', component: <TargetComponent /> },
+        { id: 'approval', label: 'Approval', component: <Approval authToken={authToken || ''} /> },
     ];
 
     return (

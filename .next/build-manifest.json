@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/mzIavtND73NF9H5lWKFyp/_buildManifest.js",
-    "static/mzIavtND73NF9H5lWKFyp/_ssgManifest.js"
+    "static/lNmCTwRbphsxpORTi8Gm3/_buildManifest.js",
+    "static/lNmCTwRbphsxpORTi8Gm3/_ssgManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -68,6 +68,13 @@
       "static/chunks/227-ad053088151bbb2b.js",
       "static/css/50cd7bf60bf9504e.css",
       "static/chunks/pages/Allowance-b71a66dc36c6180a.js"
+    ],
+    "/Approval": [
+      "static/chunks/webpack-a17ba4ee29856cc2.js",
+      "static/chunks/framework-80736d4b27adf0dc.js",
+      "static/chunks/main-c8ccb66c3deebe6c.js",
+      "static/css/2eae2faef853022f.css",
+      "static/chunks/pages/Approval-4de824051438d5fb.js"
     ],
     "/Attendance": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -431,8 +438,8 @@
       "static/chunks/3793-a88fa86ab1b1fd01.js",
       "static/chunks/5058-23d3485e12393a6f.js",
       "static/chunks/227-ad053088151bbb2b.js",
-      "static/css/fc7c932af72d06e0.css",
-      "static/chunks/pages/Settings-4b0e293bcab3b03f.js"
+      "static/css/a7662aaa10cf68d6.css",
+      "static/chunks/pages/Settings-4b7e94179f6e3295.js"
     ],
     "/SortIcon": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -465,8 +472,8 @@
       "static/chunks/webpack-a17ba4ee29856cc2.js",
       "static/chunks/framework-80736d4b27adf0dc.js",
       "static/chunks/main-c8ccb66c3deebe6c.js",
-      "static/chunks/5139-f58a905095ca25d7.js",
-      "static/chunks/pages/VisitDetailPage/BrandTab-a06e3720e6f1b7b2.js"
+      "static/chunks/1351-44db0bdfd74e5fa2.js",
+      "static/chunks/pages/VisitDetailPage/BrandTab-90165811ff7aeed6.js"
     ],
     "/VisitDetailPage/[id]": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -482,10 +489,10 @@
       "static/chunks/8076-de86822f0a67e2eb.js",
       "static/chunks/4237-591dd41a5bfe372a.js",
       "static/chunks/5675-fa066010e81413a2.js",
-      "static/chunks/5139-f58a905095ca25d7.js",
+      "static/chunks/1351-44db0bdfd74e5fa2.js",
       "static/chunks/2217-09d454403ca595a5.js",
       "static/css/7517f778e687f551.css",
-      "static/chunks/pages/VisitDetailPage/[id]-fe0775e365869344.js"
+      "static/chunks/pages/VisitDetailPage/[id]-caf909c30de22780.js"
     ],
     "/VisitDetailsModal": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
