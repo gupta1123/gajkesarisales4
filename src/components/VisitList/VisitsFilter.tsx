@@ -85,6 +85,12 @@ const VisitsFilter: React.FC<VisitsFilterProps> = ({
         }, false);
     }, [debouncedStoreName, debouncedEmployeeName, debouncedPurpose, onFilter]);
 
+    useEffect(() => {
+        setLocalStoreName(storeName);
+        setLocalEmployeeName(employeeName);
+        setLocalPurpose(purpose);
+    }, [storeName, employeeName, purpose]);
+
     const handleInputChange = (field: 'storeName' | 'employeeName' | 'purpose', value: string) => {
         switch (field) {
             case 'storeName':

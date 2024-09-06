@@ -5,11 +5,19 @@ import { useQuery, QueryClient, QueryClientProvider, useQueryClient } from 'reac
 import { useRouter } from 'next/router';
 import { RootState } from '../store';
 import VisitsTable from '../components/VisitList/VisitsTable';
-import VisitsFilter from '../components/VisitList/VisitsFilter';
 import { Visit } from '../components/VisitList/types';
 import { format, subDays } from 'date-fns';
 import { stringify } from 'csv-stringify';
 import { Pagination, PaginationContent, PaginationLink, PaginationItem, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Filter, X, CalendarIcon } from 'lucide-react';
+import { cn } from "@/lib/utils";
 import './VisitsList.css';
 
 const queryClient = new QueryClient();
@@ -138,7 +146,6 @@ const VisitsList: React.FC = () => {
   const { date, employeeName: stateEmployeeName } = state || {};
   const queryClient = useQueryClient();
 
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
   const [startDate, setStartDate] = useState<Date | undefined>(date ? new Date(date as string) : subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | undefined>(date ? new Date(date as string) : new Date());
   const [sortColumn, setSortColumn] = useState<string | null>('id');
@@ -453,6 +460,10 @@ const VisitsList: React.FC = () => {
     }
   }, [role, teamId, token, startDate, endDate, purpose, storeName, employeeName, sortColumn, sortDirection, handleExport]);
 
+  const handleClearInput = useCallback((setter: React.Dispatch<React.SetStateAction<string>>) => {
+    setter('');
+  }, []);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -533,23 +544,158 @@ const VisitsList: React.FC = () => {
     <div className="container-visit mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl font-bold mb-6">Visits List</h2>
 
-      <VisitsFilter
-        onFilter={handleFilter}
-        onColumnSelect={handleColumnSelect}
-        onExport={fetchAndExportAllVisits}
-        selectedColumns={selectedColumns}
-        viewMode={viewMode}
-        startDate={startDate}
-        setStartDate={setStartDate}
-        endDate={endDate}
-        setEndDate={setEndDate}
-        purpose={purpose}
-        setPurpose={setPurpose}
-        storeName={storeName}
-        setStoreName={setStoreName}
-        employeeName={employeeName}
-        setEmployeeName={setEmployeeName}
-      />
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="relative">
+              <Label htmlFor="purpose">Purpose</Label>
+              <div className="relative">
+                <Input
+                  id="purpose"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  className="pr-8"
+                  placeholder="Enter purpose"
+                />
+                {purpose && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => handleClearInput(setPurpose)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="relative">
+              <Label htmlFor="storeName">Customer Name</Label>
+              <div className="relative">
+                <Input
+                  id="storeName"
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  className="pr-8"
+                  placeholder="Enter customer name"
+                />
+                {storeName && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => handleClearInput(setStoreName)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="relative">
+              <Label htmlFor="employeeName">Executive Name</Label>
+              <div className="relative">
+                <Input
+                  id="employeeName"
+                  value={employeeName}
+                  onChange={(e) => setEmployeeName(e.target.value)}
+                  className="pr-8"
+                  placeholder="Enter executive name"
+                />
+                {employeeName && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => handleClearInput(setEmployeeName)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 justify-between items-center">
+            <div className="flex gap-4">
+              <Button onClick={() => handleFilter({ storeName, employeeName, purpose }, false)}>
+                <Filter className="mr-2 h-4 w-4" /> Apply Filters
+              </Button>
+              <Button variant="outline" onClick={() => handleFilter({ storeName: '', employeeName: '', purpose: '' }, true)}>
+                <X className="mr-2 h-4 w-4" /> Clear Filters
+              </Button>
+            </div>
+            <div className="flex gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">Select Columns</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {['storeName', 'employeeName', 'visit_date', 'purpose', 'outcome', 'visitStart', 'visitEnd', 'intent', 'city', 'state', 'storePrimaryContact', 'district', 'subDistrict'].map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column}
+                      checked={selectedColumns.includes(column)}
+                      onCheckedChange={() => handleColumnSelect(column)}
+                    >
+                      {column}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={fetchAndExportAllVisits}>
+                Export to CSV
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="w-full overflow-x-auto">
         <VisitsTable
@@ -560,7 +706,7 @@ const VisitsList: React.FC = () => {
           itemsPerPage={itemsPerPage}
           currentPage={currentPage}
           onSort={handleSort}
-          onBulkAction={() => { }}
+          onBulkAction={() => {}}
         />
       </div>
 
