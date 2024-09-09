@@ -5,7 +5,6 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Input } from "@/components/ui/input";
 import { PhoneIcon, EnvelopeIcon, MapPinIcon, CalendarIcon, BuildingOfficeIcon, UserCircleIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
-
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import AddTeam from './AddTeam';
@@ -112,6 +111,7 @@ const EmployeeList: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [assignedCities, setAssignedCities] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState('tab1');
 
   const token = useSelector((state: RootState) => state.auth.token);
   const role = useSelector((state: RootState) => state.auth.role);
@@ -159,10 +159,12 @@ const EmployeeList: React.FC = () => {
       setIsLoading(false);
     }
   }, [token, role, employeeId]);
+
   const getRandomColor = () => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7B801', '#7FDBFF', '#85144b'];
     return colors[Math.floor(Math.random() * colors.length)];
   };
+
   const fetchOfficeManager = useCallback(async () => {
     try {
       const response = await axios.get(`https://api.gajkesaristeels.in/employee/get?id=${officeManagerId}`, {
@@ -219,9 +221,18 @@ const EmployeeList: React.FC = () => {
     }
 
     try {
-      const response = await axios.put(`https://api.gajkesaristeels.in/user/manage/resetPassword?id=${resetPasswordUserId}`,
-        { newPassword },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      const response = await axios.put(
+        "https://api.gajkesaristeels.in/user/manage/update",
+        {
+          username: users.find(user => user.id === resetPasswordUserId)?.userName,
+          password: newPassword
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
       if (response.status === 200) {
@@ -416,8 +427,6 @@ const EmployeeList: React.FC = () => {
   };
   const [newEmployee, setNewEmployee] = useState(initialNewEmployeeState);
 
-  const [activeTab, setActiveTab] = useState('tab1');
-
   const handleSubmit = async () => {
     try {
       const response = await axios.post(
@@ -471,6 +480,7 @@ const EmployeeList: React.FC = () => {
       });
     }
   };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewEmployee((prevEmployee) => ({
@@ -529,7 +539,6 @@ const EmployeeList: React.FC = () => {
       {!isLoading && !error && (
         <>
           {/* Mobile view */}
-        
           <div className="md:hidden space-y-4">
             {currentUsers.map((user, index) => (
               <motion.div
@@ -782,7 +791,7 @@ const EmployeeList: React.FC = () => {
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Employee</DialogTitle>
-          </DialogHeader>
+            </DialogHeader>
           <Tabs value={activeTab} className="mt-6">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="tab1">Personal & Work</TabsTrigger>
@@ -1137,3 +1146,4 @@ const EmployeeList: React.FC = () => {
 };
 
 export default EmployeeList;
+          
