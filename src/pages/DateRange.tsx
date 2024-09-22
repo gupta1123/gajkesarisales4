@@ -1,152 +1,218 @@
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { useRouter } from 'next/router';
+import React, { useState, useEffect } from 'react';
+import { format, subDays, differenceInDays, addDays, parseISO } from 'date-fns';
+import { ChevronDownIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
-interface Visit {
-    id: number;
-    storeId: number;
-    storeName: string;
-    storeLatitude: number;
-    storeLongitude: number;
-    employeeId: number;
-    employeeName: string;
-    visit_date: string;
-    intent: number | null;
-    scheduledStartTime: string | null;
-    scheduledEndTime: string | null;
-    visitLatitude: number | null;
-    visitLongitude: number | null;
-    checkinLatitude: number | null;
-    checkinLongitude: number | null;
-    checkoutLatitude: number | null;
-    checkoutLongitude: number | null;
-    checkinDate: string | null;
-    checkoutDate: string | null;
-    checkinTime: string | null;
-    checkoutTime: string | null;
-    purpose: string;
-    outcome: string | null;
-    feedback: string | null;
-    createdAt: string | null;
-    createdTime: string | null;
-    updatedAt: string | null;
-    updatedTime: string | null;
+interface DateRangeDropdownProps {
+  selectedOption: string;
+  onDateRangeChange: (startDate: string, endDate: string, selectedOption: string) => void;
+  startDate: string;
+  endDate: string;
 }
 
-interface Stats {
-    // Define the properties of the statsDto object
-    // Example:
-    // totalVisits: number;
-    // completedVisits: number;
-    // pendingVisits: number;
-}
-interface StatsDto {
-    visitCount: number;
-    fullDays: number;
-    halfDays: number;
-    absences: number;
-}
+const DateRangeDropdown: React.FC<DateRangeDropdownProps> = ({ 
+  selectedOption, 
+  onDateRangeChange, 
+  startDate: propStartDate, 
+  endDate: propEndDate 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date>(parseISO(propStartDate));
+  const [endDate, setEndDate] = useState<Date>(parseISO(propEndDate));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isStartDateOpen, setIsStartDateOpen] = useState(false);
+  const [isEndDateOpen, setIsEndDateOpen] = useState(false);
 
-interface DateRangeProps {
-    setVisits: Dispatch<SetStateAction<Visit[]>>;
-    setStats: Dispatch<SetStateAction<StatsDto | null>>;
-}
+  const options = [
+    'Today',
+    'Last 7 Days',
+    'Last 15 Days',
+    'Last 30 Days',
+    'Custom Date Range',
+  ];
 
-const DateRange: React.FC<DateRangeProps> = ({ setVisits, setStats }) => {
-    const [selectedRange, setSelectedRange] = useState('last2Days');
-    const token = useSelector((state: RootState) => state.auth.token);
-    const router = useRouter();
-    const { id } = router.query;
+  useEffect(() => {
+    setStartDate(parseISO(propStartDate));
+    setEndDate(parseISO(propEndDate));
+  }, [propStartDate, propEndDate]);
 
-    const dateRanges = [
-        { label: 'Today', value: 'today' },
-        { label: 'Yesterday', value: 'yesterday' },
-        { label: 'Last 2 Days', value: 'last2Days' },
-        { label: 'This Month', value: 'thisMonth' },
-        { label: 'Last Month', value: 'lastMonth' },
-    ];
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
+  };
 
-    useEffect(() => {
-        const fetchVisits = async () => {
-            try {
-                // Determine the start and end dates based on the selected range
-                let startDate = '';
-                let endDate = '';
+  const handleDateSelect = (newDate: Date | undefined, isStartDate: boolean) => {
+    if (!newDate) return;
 
-                switch (selectedRange) {
-                    case 'today':
-                        // Set start and end dates for today
-                        startDate = new Date().toISOString().split('T')[0];
-                        endDate = startDate;
-                        break;
-                    case 'yesterday':
-                        // Set start and end dates for yesterday
-                        const yesterday = new Date();
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        startDate = yesterday.toISOString().split('T')[0];
-                        endDate = startDate;
-                        break;
-                    case 'last2Days':
-                        // Set start and end dates for the last 2 days
-                        const today = new Date();
-                        endDate = today.toISOString().split('T')[0];
-                        const twoDaysAgo = new Date();
-                        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-                        startDate = twoDaysAgo.toISOString().split('T')[0];
-                        break;
-                    case 'thisMonth':
-                        // Set start and end dates for this month
-                        const currentDate = new Date();
-                        startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
-                        endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
-                        break;
-                    case 'lastMonth':
-                        // Set start and end dates for last month
-                        const lastMonthDate = new Date();
-                        lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-                        startDate = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth(), 1).toISOString().split('T')[0];
-                        endDate = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).toISOString().split('T')[0];
-                        break;
-                    default:
-                        break;
-                }
+    let newStartDate = isStartDate ? newDate : startDate;
+    let newEndDate = isStartDate ? endDate : newDate;
 
-                const response = await fetch(`https://api.gajkesaristeels.in/visit/getByDateRangeAndEmployeeStats?id=${id}&start=${startDate}&end=${endDate}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
-                const data = await response.json();
-                setVisits(data.visitDto);
-                setStats(data.statsDto);
-            } catch (error) {
-                console.error('Error fetching visits:', error);
-            }
-        };
-
-        if (token && id) {
-            fetchVisits();
+    if (newStartDate && newEndDate) {
+      if (newStartDate > newEndDate) {
+        if (isStartDate) {
+          newEndDate = newStartDate;
+        } else {
+          newStartDate = newEndDate;
         }
-    }, [selectedRange, token, setVisits, setStats, id]);
+      }
 
-    return (
-        <div>
-            <Select value={selectedRange} onValueChange={setSelectedRange}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select a date range" />
-                </SelectTrigger>
-                <SelectContent>
-                    {dateRanges.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                            {range.label}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </div>
+      const daysDifference = differenceInDays(newEndDate, newStartDate);
+      if (daysDifference > 20) {
+        if (isStartDate) {
+          newEndDate = addDays(newStartDate, 20);
+        } else {
+          newStartDate = addDays(newEndDate, -20);
+        }
+        setErrorMessage("Date range automatically adjusted to 20 days.");
+      } else {
+        setErrorMessage(null);
+      }
+    }
+
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    setIsStartDateOpen(false);
+    setIsEndDateOpen(false);
+
+    onDateRangeChange(
+      format(newStartDate, 'yyyy-MM-dd'),
+      format(newEndDate, 'yyyy-MM-dd'),
+      'Custom Date Range'
     );
+  };
+
+  const handleOptionClick = (option: string) => {
+    setIsOpen(false);
+
+    if (option === 'Custom Date Range') {
+      setStartDate(parseISO(propStartDate));
+      setEndDate(parseISO(propEndDate));
+      setErrorMessage(null);
+    } else {
+      const today = new Date();
+      let start = today;
+      let end = today;
+
+      switch (option) {
+        case 'Today':
+          break;
+        case 'Last 7 Days':
+          start = subDays(today, 6);
+          break;
+        case 'Last 15 Days':
+          start = subDays(today, 14);
+          break;
+        case 'Last 30 Days':
+          start = subDays(today, 29);
+          break;
+      }
+
+      setStartDate(start);
+      setEndDate(end);
+      onDateRangeChange(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'), option);
+    }
+  };
+
+  return (
+    <div className="relative inline-block text-left">
+      <div>
+        <Button
+          variant="outline"
+          onClick={toggleDropdown}
+          className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
+        >
+          {selectedOption}
+          <ChevronDownIcon className="-mr-1 ml-2 h-5 w-5" aria-hidden="true" />
+        </Button>
+      </div>
+
+      {isOpen && (
+        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+          <div
+            className="py-1"
+            role="menu"
+            aria-orientation="vertical"
+            aria-labelledby="options-menu"
+          >
+            {options.map((option) => (
+              <a
+                key={option}
+                href="#"
+                className={`${
+                  option === selectedOption
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-700'
+                } block px-4 py-2 text-sm`}
+                role="menuitem"
+                onClick={() => handleOptionClick(option)}
+              >
+                {option}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedOption === 'Custom Date Range' && (
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "PPP") : <span>Start date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(date) => handleDateSelect(date, true)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div>
+            <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : <span>End date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(date) => handleDateSelect(date, false)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mt-2 text-yellow-600 text-sm">{errorMessage}</div>
+      )}
+    </div>
+  );
 };
 
-export default DateRange;
+export default DateRangeDropdown;

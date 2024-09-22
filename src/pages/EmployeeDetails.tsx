@@ -303,6 +303,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
     currentPage,
     setCurrentPage,
     isLoading,
+    onBackClick,
 }) => {
     const router = useRouter();
 
@@ -344,7 +345,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
         <>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold capitalize">{selectedEmployee}</h1>
-                <Button variant="ghost" size="lg" onClick={() => setSelectedEmployee(null)}>
+                <Button variant="ghost" size="lg" onClick={onBackClick}>
                     Back
                 </Button>
             </div>
@@ -354,7 +355,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
                 <KPICard title="Half Days" value={employeeDetails.statsDto ? employeeDetails.statsDto.halfDays : 0} />
                 <KPICard title="Absences" value={employeeDetails.statsDto ? employeeDetails.statsDto.absences : 0} />
             </div>
-            <div className="mb-8">
+            <div className="flex justify-end mb-4">
                 <DateRangeDropdown selectedOption={selectedOption} onDateRangeChange={handleDateRangeChange} />
             </div>
             {isLoading ? (

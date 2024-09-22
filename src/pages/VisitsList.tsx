@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import { RootState } from '../store';
 import VisitsTable from '../components/VisitList/VisitsTable';
 import { Visit } from '../components/VisitList/types';
-import { format, subDays } from 'date-fns';
+import { format, subDays, differenceInDays } from 'date-fns';
 import { stringify } from 'csv-stringify';
 import { Pagination, PaginationContent, PaginationLink, PaginationItem, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,8 +34,10 @@ const fetchVisits = async (
   currentPage: number,
   itemsPerPage: number
 ) => {
-  const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
-  const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
+  if (!startDate || !endDate) return null;
+
+  const formattedStartDate = format(startDate, 'yyyy-MM-dd');
+  const formattedEndDate = format(endDate, 'yyyy-MM-dd');
   let url = `https://api.gajkesaristeels.in/visit/getByDateSorted?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${currentPage - 1}&size=${itemsPerPage}`;
 
   if (sortColumn) {
@@ -75,8 +77,10 @@ const fetchVisitsForTeam = async (
   currentPage: number,
   itemsPerPage: number
 ) => {
-  const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
-  const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
+  if (!startDate || !endDate) return null;
+
+  const formattedStartDate = format(startDate, 'yyyy-MM-dd');
+  const formattedEndDate = format(endDate, 'yyyy-MM-dd');
   let url = `https://api.gajkesaristeels.in/visit/getForTeam?teamId=${teamId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${currentPage - 1}&size=${itemsPerPage}`;
 
   if (sortColumn) {
@@ -107,6 +111,8 @@ const fetchAllVisitsForTeam = async (
   sortColumn: string | null,
   sortDirection: 'asc' | 'desc'
 ) => {
+  if (!startDate || !endDate) return [];
+
   let page = 0;
   const itemsPerPage = 100;
   const allVisits = [];
@@ -124,6 +130,8 @@ const fetchAllVisitsForTeam = async (
       page + 1,
       itemsPerPage
     );
+
+    if (!response) break;
 
     allVisits.push(...response.content);
 
@@ -146,8 +154,8 @@ const VisitsList: React.FC = () => {
   const { date, employeeName: stateEmployeeName } = state || {};
   const queryClient = useQueryClient();
 
-  const [startDate, setStartDate] = useState<Date | undefined>(date ? new Date(date as string) : subDays(new Date(), 7));
-  const [endDate, setEndDate] = useState<Date | undefined>(date ? new Date(date as string) : new Date());
+  const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 7));
+  const [endDate, setEndDate] = useState<Date>(new Date());
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -170,6 +178,9 @@ const VisitsList: React.FC = () => {
     'district',
     'subDistrict',
   ]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isStartDateOpen, setIsStartDateOpen] = useState(false);
+  const [isEndDateOpen, setIsEndDateOpen] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -246,6 +257,42 @@ const VisitsList: React.FC = () => {
       router.events.off('routeChangeStart', handleRouteChange);
     };
   }, [router.events]);
+
+  const handleDateSelect = (newDate: Date | undefined, isStartDate: boolean) => {
+    if (!newDate) return;
+
+    let newStartDate = isStartDate ? newDate : startDate;
+    let newEndDate = isStartDate ? endDate : newDate;
+
+    if (newStartDate && newEndDate) {
+      if (newStartDate > newEndDate) {
+        if (isStartDate) {
+          newEndDate = newStartDate;
+        } else {
+          newStartDate = newEndDate;
+        }
+      }
+
+      const daysDifference = differenceInDays(newEndDate, newStartDate);
+      if (daysDifference > 20) {
+        setErrorMessage("You can't choose a date range more than 20 days.");
+        setIsStartDateOpen(false);
+        setIsEndDateOpen(false);
+        return;
+      }
+    }
+
+    setErrorMessage(null);
+    if (isStartDate) {
+      setStartDate(newStartDate);
+      setIsStartDateOpen(false);
+    } else {
+      setEndDate(newEndDate);
+      setIsEndDateOpen(false);
+    }
+
+    queryClient.invalidateQueries(['visits']);
+  };
 
   const loadStateFromLocalStorage = useCallback(() => {
     const state = localStorage.getItem('visitsListState');
@@ -456,7 +503,9 @@ const VisitsList: React.FC = () => {
         1,
         1000 // Fetch a large number of visits for export
       );
-      handleExport(allVisits.content);
+      if (allVisits) {
+        handleExport(allVisits.content);
+      }
     }
   }, [role, teamId, token, startDate, endDate, purpose, storeName, employeeName, sortColumn, sortDirection, handleExport]);
 
@@ -549,7 +598,7 @@ const VisitsList: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
-              <Popover>
+              <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
@@ -566,7 +615,7 @@ const VisitsList: React.FC = () => {
                   <Calendar
                     mode="single"
                     selected={startDate}
-                    onSelect={setStartDate}
+                    onSelect={(date) => handleDateSelect(date, true)}
                     initialFocus
                   />
                 </PopoverContent>
@@ -574,7 +623,7 @@ const VisitsList: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="endDate">End Date</Label>
-              <Popover>
+              <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
@@ -591,13 +640,16 @@ const VisitsList: React.FC = () => {
                   <Calendar
                     mode="single"
                     selected={endDate}
-                    onSelect={setEndDate}
+                    onSelect={(date) => handleDateSelect(date, false)}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
           </div>
+          {errorMessage && (
+            <div className="text-red-500 mb-4">{errorMessage}</div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="relative">
               <Label htmlFor="purpose">Purpose</Label>
