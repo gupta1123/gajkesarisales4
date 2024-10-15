@@ -186,17 +186,18 @@ const VisitsList: React.FC = () => {
 
   const saveStateToLocalStorage = useCallback(() => {
     const state = {
-      startDate,
-      endDate,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       sortColumn,
       sortDirection,
       currentPage,
       purpose,
       storeName,
       employeeName,
+      selectedColumns,
     };
     localStorage.setItem('visitsListState', JSON.stringify(state));
-  }, [startDate, endDate, sortColumn, sortDirection, currentPage, purpose, storeName, employeeName]);
+  }, [startDate, endDate, sortColumn, sortDirection, currentPage, purpose, storeName, employeeName, selectedColumns]);
 
   useEffect(() => {
     const selectedDate = localStorage.getItem('selectedDate');
@@ -274,8 +275,8 @@ const VisitsList: React.FC = () => {
       }
 
       const daysDifference = differenceInDays(newEndDate, newStartDate);
-      if (daysDifference > 20) {
-        setErrorMessage("You can't choose a date range more than 20 days.");
+      if (daysDifference > 30) {
+        setErrorMessage("You can't choose a date range more than 30 days.");
         setIsStartDateOpen(false);
         setIsEndDateOpen(false);
         return;
@@ -306,20 +307,24 @@ const VisitsList: React.FC = () => {
       setPurpose(parsedState.purpose);
       setStoreName(parsedState.storeName);
       setEmployeeName(parsedState.employeeName);
+      setSelectedColumns(parsedState.selectedColumns || selectedColumns);
     }
   }, []);
 
   useEffect(() => {
-    if (!localStorage.getItem('selectedDate')) {
+    const savedState = localStorage.getItem('visitsListState');
+    if (savedState) {
+      loadStateFromLocalStorage();
+    } else {
       setStartDate(subDays(new Date(), 7));
       setEndDate(new Date());
-    } else {
-      loadStateFromLocalStorage();
     }
   }, [loadStateFromLocalStorage]);
 
   useEffect(() => {
-    saveStateToLocalStorage();
+    return () => {
+      saveStateToLocalStorage();
+    };
   }, [saveStateToLocalStorage]);
 
   const { data, error, isLoading } = useQuery(
@@ -383,7 +388,8 @@ const VisitsList: React.FC = () => {
     }
     setCurrentPage(1);
     queryClient.invalidateQueries(['visits']);
-  }, [queryClient]);
+    saveStateToLocalStorage();
+  }, [queryClient, saveStateToLocalStorage]);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -758,7 +764,7 @@ const VisitsList: React.FC = () => {
           itemsPerPage={itemsPerPage}
           currentPage={currentPage}
           onSort={handleSort}
-          onBulkAction={() => {}}
+          onBulkAction={() => { }}
         />
       </div>
 
@@ -776,3 +782,4 @@ const App: React.FC = () => (
 );
 
 export default App;
+
