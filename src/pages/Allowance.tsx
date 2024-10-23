@@ -30,7 +30,6 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
     const [editedData, setEditedData] = useState<{ [key: number]: any }>({});
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [travelRates, setTravelRates] = useState<Array<{ id: number, employeeId: number, carRatePerKm: number, bikeRatePerKm: number }>>([]);
-    const [editedTravelRates, setEditedTravelRates] = useState<{ [key: number]: { carRatePerKm: number, bikeRatePerKm: number } | undefined }>({});
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [expandedCards, setExpandedCards] = useState<{ [key: number]: boolean }>({});
     const rowsPerPage = 10;
@@ -87,21 +86,10 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                 [field]: value
             }
         }));
-
-        if (field === 'carRatePerKm' || field === 'bikeRatePerKm') {
-            setEditedTravelRates(prevRates => ({
-                ...prevRates,
-                [employeeId]: {
-                    ...prevRates[employeeId],
-                    [field]: parseFloat(value) || 0
-                } as { carRatePerKm: number; bikeRatePerKm: number }
-            }));
-        }
     };
 
     const updateSalary = async (employeeId: number) => {
         const employee = editedData[employeeId];
-        const travelRate = editedTravelRates[employeeId];
         if (!employee) return;
 
         try {
@@ -119,45 +107,52 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                 }),
             });
 
-            if (travelRate) {
-                const travelRateEntry = travelRates.find(rate => rate.employeeId === employeeId);
-
-                if (travelRateEntry) {
-                    const travelRateResponse = await fetch(`https://api.gajkesaristeels.in/travel-rates/edit?id=${travelRateEntry.id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `Bearer ${authToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            bikeRatePerKm: travelRate.bikeRatePerKm,
-                            carRatePerKm: travelRate.carRatePerKm
-                        }),
-                    });
-
-                    if (!travelRateResponse.ok) {
-                        throw new Error('Failed to update travel rates');
-                    }
-                } else {
-                    console.error('Travel rate entry not found for employee:', employeeId);
-                }
-            }
-
-            const result = await salaryResponse.text();
-            if (result === 'Salary Updated!') {
-                fetchEmployees();
-                fetchTravelRates();
-                setEditMode(prevMode => ({
-                    ...prevMode,
-                    [employeeId]: false
-                }));
-                notification.success({
-                    message: 'Success',
-                    description: 'Salary and travel rates updated successfully!',
-                });
-            } else {
+            if (!salaryResponse.ok) {
                 throw new Error('Failed to update salary');
             }
+
+            const existingTravelRate = travelRates.find(rate => rate.employeeId === employeeId);
+            const travelRateData = {
+                employeeId: employeeId,
+                carRatePerKm: parseFloat(employee.carRatePerKm) || 0,
+                bikeRatePerKm: parseFloat(employee.bikeRatePerKm) || 0
+            };
+
+            let travelRateResponse;
+            if (existingTravelRate) {
+                travelRateResponse = await fetch(`https://api.gajkesaristeels.in/travel-rates/edit?id=${existingTravelRate.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(travelRateData),
+                });
+            } else {
+                travelRateResponse = await fetch(`https://api.gajkesaristeels.in/travel-rates/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(travelRateData),
+                });
+            }
+
+            if (!travelRateResponse.ok) {
+                throw new Error('Failed to update travel rates');
+            }
+
+            fetchEmployees();
+            fetchTravelRates();
+            setEditMode(prevMode => ({
+                ...prevMode,
+                [employeeId]: false
+            }));
+            notification.success({
+                message: 'Success',
+                description: 'Salary and travel rates updated successfully!',
+            });
         } catch (error) {
             console.error('Error saving changes:', error);
             notification.error({
@@ -168,6 +163,8 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
     };
 
     const startEdit = (employeeId: number) => {
+        const employee = employees.find(e => e.id === employeeId);
+        const travelRate = travelRates.find(rate => rate.employeeId === employeeId);
         setEditMode(prevMode => ({
             ...prevMode,
             [employeeId]: true
@@ -175,14 +172,12 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
         setEditedData(prevData => ({
             ...prevData,
             [employeeId]: {
-                travelAllowance: employees.find(e => e.id === employeeId)?.travelAllowance,
-                dearnessAllowance: employees.find(e => e.id === employeeId)?.dearnessAllowance,
-                fullMonthSalary: employees.find(e => e.id === employeeId)?.fullMonthSalary
+                travelAllowance: employee?.travelAllowance || 0,
+                dearnessAllowance: employee?.dearnessAllowance || 0,
+                fullMonthSalary: employee?.fullMonthSalary || 0,
+                carRatePerKm: travelRate?.carRatePerKm || 0,
+                bikeRatePerKm: travelRate?.bikeRatePerKm || 0
             }
-        }));
-        setEditedTravelRates(prevRates => ({
-            ...prevRates,
-            [employeeId]: travelRates.find(rate => rate.employeeId === employeeId) || { carRatePerKm: 0, bikeRatePerKm: 0 }
         }));
     };
 
@@ -195,11 +190,6 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
             const newData = { ...prevData };
             delete newData[employeeId];
             return newData;
-        });
-        setEditedTravelRates(prevRates => {
-            const newRates = { ...prevRates };
-            delete newRates[employeeId];
-            return newRates;
         });
     };
 
@@ -254,7 +244,7 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                             {editMode[employee.id] ? (
                                                 <Input
                                                     type="number"
-                                                    value={editedData[employee.id]?.dearnessAllowance || employee.dearnessAllowance}
+                                                    value={editedData[employee.id]?.dearnessAllowance ?? employee.dearnessAllowance}
                                                     onChange={(e) => handleInputChange(employee.id, 'dearnessAllowance', e.target.value)}
                                                     className="w-24 text-right"
                                                 />
@@ -270,7 +260,7 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                             {editMode[employee.id] ? (
                                                 <Input
                                                     type="number"
-                                                    value={editedData[employee.id]?.fullMonthSalary || employee.fullMonthSalary}
+                                                    value={editedData[employee.id]?.fullMonthSalary ?? employee.fullMonthSalary}
                                                     onChange={(e) => handleInputChange(employee.id, 'fullMonthSalary', e.target.value)}
                                                     className="w-24 text-right"
                                                 />
@@ -286,12 +276,12 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                             {editMode[employee.id] ? (
                                                 <Input
                                                     type="number"
-                                                    value={editedTravelRates[employee.id]?.carRatePerKm || travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm || 0}
+                                                    value={editedData[employee.id]?.carRatePerKm ?? travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm ?? 0}
                                                     onChange={(e) => handleInputChange(employee.id, 'carRatePerKm', e.target.value)}
                                                     className="w-24 text-right"
                                                 />
                                             ) : (
-                                                <span className="font-semibold">{travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm || 0}</span>
+                                                <span className="font-semibold">{travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm ?? 0}</span>
                                             )}
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -302,12 +292,12 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                             {editMode[employee.id] ? (
                                                 <Input
                                                     type="number"
-                                                    value={editedTravelRates[employee.id]?.bikeRatePerKm || travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm || 0}
+                                                    value={editedData[employee.id]?.bikeRatePerKm ?? travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm ?? 0}
                                                     onChange={(e) => handleInputChange(employee.id, 'bikeRatePerKm', e.target.value)}
                                                     className="w-24 text-right"
                                                 />
                                             ) : (
-                                                <span className="font-semibold">{travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm || 0}</span>
+                                                <span className="font-semibold">{travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm ?? 0}</span>
                                             )}
                                         </div>
                                     </div>
@@ -346,7 +336,7 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                     {editMode[employee.id] ? (
                                         <Input
                                             type="number"
-                                            value={editedData[employee.id]?.dearnessAllowance || employee.dearnessAllowance}
+                                            value={editedData[employee.id]?.dearnessAllowance ?? employee.dearnessAllowance}
                                             onChange={(e) => handleInputChange(employee.id, 'dearnessAllowance', e.target.value)}
                                             className="w-full"
                                         />
@@ -358,7 +348,7 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                     {editMode[employee.id] ? (
                                         <Input
                                             type="number"
-                                            value={editedData[employee.id]?.fullMonthSalary || employee.fullMonthSalary}
+                                            value={editedData[employee.id]?.fullMonthSalary ?? employee.fullMonthSalary}
                                             onChange={(e) => handleInputChange(employee.id, 'fullMonthSalary', e.target.value)}
                                             className="w-full"
                                         />
@@ -370,24 +360,24 @@ const Allowance: React.FC<{ authToken: string | null }> = ({ authToken }) => {
                                     {editMode[employee.id] ? (
                                         <Input
                                             type="number"
-                                            value={editedTravelRates[employee.id]?.carRatePerKm || travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm || 0}
+                                            value={editedData[employee.id]?.carRatePerKm ?? travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm ?? 0}
                                             onChange={(e) => handleInputChange(employee.id, 'carRatePerKm', e.target.value)}
                                             className="w-full"
                                         />
                                     ) : (
-                                        travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm || 0
+                                        travelRates.find(rate => rate.employeeId === employee.id)?.carRatePerKm ?? 0
                                     )}
                                 </TableCell>
                                 <TableCell>
                                     {editMode[employee.id] ? (
                                         <Input
                                             type="number"
-                                            value={editedTravelRates[employee.id]?.bikeRatePerKm || travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm || 0}
+                                            value={editedData[employee.id]?.bikeRatePerKm ?? travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm ?? 0}
                                             onChange={(e) => handleInputChange(employee.id, 'bikeRatePerKm', e.target.value)}
                                             className="w-full"
                                         />
                                     ) : (
-                                        travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm || 0
+                                        travelRates.find(rate => rate.employeeId === employee.id)?.bikeRatePerKm ?? 0
                                     )}
                                 </TableCell>
                                 <TableCell>
