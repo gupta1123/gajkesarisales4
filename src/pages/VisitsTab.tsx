@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FaCalendarAlt } from 'react-icons/fa';
 import { format } from "date-fns";
-import './VisitsTab.css'; 
+import './VisitsTab.css';
 
 interface Visit {
     id: number;

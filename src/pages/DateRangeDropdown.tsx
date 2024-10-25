@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { format, subDays } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { format, subDays, differenceInDays, parseISO } from 'date-fns';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface DateRangeDropdownProps {
@@ -12,6 +12,7 @@ const DateRangeDropdown: React.FC<DateRangeDropdownProps> = ({ selectedOption, o
     const [isCustomDateRangeOpen, setIsCustomDateRangeOpen] = useState(false);
     const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const options = [
         'Today',
@@ -60,9 +61,22 @@ const DateRangeDropdown: React.FC<DateRangeDropdownProps> = ({ selectedOption, o
     };
 
     const handleCustomDateRangeSubmit = () => {
-        onDateRangeChange(startDate, endDate, 'Custom Date Range');
-        setIsCustomDateRangeOpen(false);
+        const start = parseISO(startDate);
+        const end = parseISO(endDate);
+        const daysDifference = differenceInDays(end, start);
+
+        if (daysDifference > 30) {
+            setErrorMessage("You can't choose a Date Range more than 30 days");
+        } else {
+            setErrorMessage(null);
+            onDateRangeChange(startDate, endDate, 'Custom Date Range');
+            setIsCustomDateRangeOpen(false);
+        }
     };
+
+    useEffect(() => {
+        setErrorMessage(null);
+    }, [startDate, endDate]);
 
     return (
         <div className="relative inline-block text-left">
@@ -146,6 +160,9 @@ const DateRangeDropdown: React.FC<DateRangeDropdownProps> = ({ selectedOption, o
                                                 onChange={(e) => setEndDate(e.target.value)}
                                             />
                                         </div>
+                                        {errorMessage && (
+                                            <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

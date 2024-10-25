@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/hSY94vm2ZPQrxW5iYfYsw/_buildManifest.js",
-    "static/hSY94vm2ZPQrxW5iYfYsw/_ssgManifest.js"
+    "static/gva3rsrwCvtlDIJUEs0CU/_buildManifest.js",
+    "static/gva3rsrwCvtlDIJUEs0CU/_ssgManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -240,12 +240,12 @@
       "static/chunks/main-c8ccb66c3deebe6c.js",
       "static/chunks/d94c0b71-13375053afb5de02.js",
       "static/chunks/4145-eacf05b0d16baea6.js",
-      "static/chunks/870-aa80cdad8e4d1e06.js",
-      "static/chunks/1613-3cae20335c67c225.js",
+      "static/chunks/870-ca521d4104a2b236.js",
+      "static/chunks/2058-b5e0b3fff9faff19.js",
       "static/css/718ee59ff2172a97.css",
-      "static/chunks/4896-abf4d7d323ac343e.js",
+      "static/chunks/4896-b103cf5acbc006a6.js",
       "static/css/0c48cdb188330012.css",
-      "static/chunks/pages/Dashboard-19c7918e4cb8387e.js"
+      "static/chunks/pages/Dashboard-b2cbf83c4ca67496.js"
     ],
     "/DateRange": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -262,7 +262,7 @@
       "static/chunks/framework-80736d4b27adf0dc.js",
       "static/chunks/main-c8ccb66c3deebe6c.js",
       "static/chunks/4145-eacf05b0d16baea6.js",
-      "static/chunks/pages/DateRangeDropdown-13de4218d7e9f8ac.js"
+      "static/chunks/pages/DateRangeDropdown-7cfd75e62184e945.js"
     ],
     "/DeleteConfirmationModal": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -288,10 +288,10 @@
       "static/chunks/framework-80736d4b27adf0dc.js",
       "static/chunks/main-c8ccb66c3deebe6c.js",
       "static/chunks/4145-eacf05b0d16baea6.js",
-      "static/chunks/870-aa80cdad8e4d1e06.js",
-      "static/chunks/1613-3cae20335c67c225.js",
-      "static/chunks/4896-abf4d7d323ac343e.js",
-      "static/chunks/pages/EmployeeDetails-22fc0042d38c703f.js"
+      "static/chunks/870-ca521d4104a2b236.js",
+      "static/chunks/2058-b5e0b3fff9faff19.js",
+      "static/chunks/4896-b103cf5acbc006a6.js",
+      "static/chunks/pages/EmployeeDetails-86b9e83c2320a815.js"
     ],
     "/EmployeeLocationList": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -376,7 +376,7 @@
       "static/chunks/4145-eacf05b0d16baea6.js",
       "static/chunks/2403-38595d1f00b80e36.js",
       "static/chunks/9676-4f7fe41a5192c545.js",
-      "static/chunks/870-aa80cdad8e4d1e06.js",
+      "static/chunks/870-ca521d4104a2b236.js",
       "static/chunks/3308-a431b0c5b3574865.js",
       "static/css/a617e0c1711121da.css",
       "static/chunks/pages/Reports-b040ee102aaea73c.js"
@@ -405,7 +405,7 @@
       "static/chunks/6066-03becb624a4d8029.js",
       "static/chunks/2116-7fc13a67d6c60b63.js",
       "static/chunks/5198-c834e114d388bdc1.js",
-      "static/chunks/5058-23d3485e12393a6f.js",
+      "static/chunks/5058-6cd7cdf05c5208b8.js",
       "static/css/99bf6efa767ee995.css",
       "static/chunks/pages/Salary-8735fe1f12d55ee6.js"
     ],
@@ -436,7 +436,7 @@
       "static/chunks/5722-e46c55dada490765.js",
       "static/chunks/5198-c834e114d388bdc1.js",
       "static/chunks/3793-a88fa86ab1b1fd01.js",
-      "static/chunks/5058-23d3485e12393a6f.js",
+      "static/chunks/5058-6cd7cdf05c5208b8.js",
       "static/chunks/227-636f653afd320bd9.js",
       "static/css/a7662aaa10cf68d6.css",
       "static/chunks/pages/Settings-4b7e94179f6e3295.js"
@@ -516,7 +516,7 @@
       "static/chunks/8776-facae1e466d1196d.js",
       "static/chunks/9176-19c0976a8ff49543.js",
       "static/css/4ced0ec3d3657563.css",
-      "static/chunks/pages/VisitsList-13d385c364a7d392.js"
+      "static/chunks/pages/VisitsList-412ffc1163413af0.js"
     ],
     "/VisitsTab": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
