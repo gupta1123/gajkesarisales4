@@ -112,6 +112,9 @@ const EmployeeList: React.FC = () => {
   const [cities, setCities] = useState<string[]>([]);
   const [assignedCities, setAssignedCities] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('tab1');
+  const [archivedEmployees, setArchivedEmployees] = useState<User[]>([]);
+  const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
 
   const token = useSelector((state: RootState) => state.auth.token);
   const role = useSelector((state: RootState) => state.auth.role);
@@ -497,6 +500,62 @@ const EmployeeList: React.FC = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  const fetchArchivedEmployees = async () => {
+    try {
+      const response = await axios.get('https://api.gajkesaristeels.in/employee/getAllInactive', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setArchivedEmployees(response.data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch archived employees",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUnarchive = async (employeeId: number) => {
+    try {
+      const response = await axios.put(
+        `https://api.gajkesaristeels.in/employee/setActive?id=${employeeId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.data === "Employee Status changed!") {
+        toast({
+          title: "Success",
+          description: "Employee successfully unarchived",
+        });
+        // Refresh both lists
+        fetchArchivedEmployees();
+        fetchEmployees();
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unarchive employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredArchivedEmployees = useMemo(() => {
+    return archivedEmployees.filter((employee) =>
+      `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(archiveSearchQuery.toLowerCase()) ||
+      employee.role.toLowerCase().includes(archiveSearchQuery.toLowerCase()) ||
+      employee.departmentName.toLowerCase().includes(archiveSearchQuery.toLowerCase()) ||
+      employee.city.toLowerCase().includes(archiveSearchQuery.toLowerCase())
+    );
+  }, [archivedEmployees, archiveSearchQuery]);
+
   return (
     <div className="container-employee mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mobile-display flex items-center justify-between mb-8">
@@ -512,6 +571,15 @@ const EmployeeList: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full max-w-md"
           />
+          <Button 
+            variant="outline"
+            onClick={() => {
+              setIsArchivedModalOpen(true);
+              fetchArchivedEmployees();
+            }}
+          >
+            Archived Employees
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">Select Columns</Button>
@@ -1139,6 +1207,92 @@ const EmployeeList: React.FC = () => {
             </Button>
             <Button onClick={handleSaveEdit}>Save</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isArchivedModalOpen} onOpenChange={setIsArchivedModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Archived Employees</DialogTitle>
+            <DialogDescription>
+              View and manage archived employees
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Search Filter */}
+            <div className="flex items-center space-x-2">
+              <Input
+                placeholder="Search archived employees..."
+                value={archiveSearchQuery}
+                onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                className="max-w-md"
+              />
+              <Badge variant="secondary" className="h-9 px-3">
+                {filteredArchivedEmployees.length} Results
+              </Badge>
+            </div>
+
+            {/* Table */}
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>City</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredArchivedEmployees.map((employee) => (
+                    <TableRow key={employee.id}>
+                      <TableCell className="font-medium">
+                        {`${employee.firstName} ${employee.lastName}`}
+                      </TableCell>
+                      <TableCell>{employee.role}</TableCell>
+                      <TableCell>{employee.departmentName}</TableCell>
+                      <TableCell>{employee.city}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnarchive(employee.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <ArrowLeftIcon className="h-4 w-4" />
+                          Unarchive
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredArchivedEmployees.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <p className="text-sm text-muted-foreground">
+                            {archivedEmployees.length === 0 
+                              ? "No archived employees found" 
+                              : "No results found for your search"}
+                          </p>
+                          {archivedEmployees.length > 0 && archiveSearchQuery && (
+                            <Button 
+                              variant="ghost" 
+                              onClick={() => setArchiveSearchQuery("")}
+                              className="text-sm"
+                            >
+                              Clear search
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

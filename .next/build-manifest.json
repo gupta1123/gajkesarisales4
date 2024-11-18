@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/l8KzBxNt_PhXo8npEDeJk/_buildManifest.js",
-    "static/l8KzBxNt_PhXo8npEDeJk/_ssgManifest.js"
+    "static/-837JCd3EeYGQ9I-hvIIK/_buildManifest.js",
+    "static/-837JCd3EeYGQ9I-hvIIK/_ssgManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -325,7 +325,7 @@
       "static/chunks/7152-0847660cb60c4163.js",
       "static/chunks/7011-655884d06326899d.js",
       "static/css/88f29e05d51ff220.css",
-      "static/chunks/pages/Employeelist-4d7926b3516a3d1d.js"
+      "static/chunks/pages/Employeelist-c8b417620b33a89d.js"
     ],
     "/ErrorBoundary": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -548,8 +548,8 @@
       "static/chunks/webpack-a17ba4ee29856cc2.js",
       "static/chunks/framework-80736d4b27adf0dc.js",
       "static/chunks/main-c8ccb66c3deebe6c.js",
-      "static/css/d154d61d37a12b0a.css",
-      "static/chunks/pages/_app-837fa93663547c39.js"
+      "static/css/ed01effcd1d3b37e.css",
+      "static/chunks/pages/_app-faae8942e75bb4a1.js"
     ],
     "/_error": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
