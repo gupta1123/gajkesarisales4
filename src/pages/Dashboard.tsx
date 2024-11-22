@@ -435,13 +435,12 @@ const Dashboard: React.FC = () => {
         map.current.on('load', () => {
           map.current!.addControl(new NavigationControl(), 'top-left');
 
-          locations.forEach((location, index) => {
+          locations.forEach(async (location, index) => {
             const color = `hsl(${(index * 137.508) % 360}, 70%, 50%)`;
             const marker = new Marker({ color: color })
               .setLngLat([location.longitude, location.latitude])
               .addTo(map.current!);
 
-            const employee = employeeInfo.find(emp => emp.id === location.empId);
             const updatedDateTime = parseISO(`${location.updatedAt}T${location.updatedTime}`);
             const formattedDateTime = format(updatedDateTime, "d MMM ''yy h:mm a");
 
@@ -451,24 +450,183 @@ const Dashboard: React.FC = () => {
                 currentPopup = null;
               }
 
-              const latestVisit = await fetchLatestVisit(location.empName);
-              const visitTime = latestVisit && latestVisit.checkinTime ? format(parseISO(`${latestVisit.visit_date}T${latestVisit.checkinTime}`), "h:mm a") : 'N/A';
-              const popupContent = `
-                <div class="map-popup">
-                  <h3>${location.empName}</h3>
-                  <p><strong>Last updated:</strong> ${formattedDateTime}</p>
-                  ${latestVisit ? `
-                    <div class="latest-visit">
-                      <p><strong>Latest Visit:</strong> ${latestVisit.storeName} at ${visitTime}</p>
-                    </div>
-                  ` : '<p>No recent visits</p>'}
-                </div>
-              `;
+              try {
+                const [employeeResponse, checkinsResponse] = await Promise.all([
+                  axios.get(`${API_BASE_URL}/employee/getById?id=${location.empId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                  }),
+                  axios.get(`${API_BASE_URL}/visit/getByDateRangeAndEmployeeStats`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: {
+                      id: location.empId,
+                      start: format(new Date(), 'yyyy-MM-dd'),
+                      end: format(new Date(), 'yyyy-MM-dd')
+                    }
+                  })
+                ]);
 
-              const popup = new Popup({ offset: 25 }).setHTML(popupContent);
-              popup.setLngLat(marker.getLngLat());
-              popup.addTo(map.current!);
-              currentPopup = popup;
+                const employeeData = employeeResponse.data;
+                const checkinsData = checkinsResponse.data;
+                const visits = checkinsData.visitDto || [];
+                
+                const sortedVisits = visits.sort((a: any, b: any) => {
+                  const timeA = a.checkinTime ? new Date(`${a.visit_date}T${a.checkinTime}`).getTime() : 0;
+                  const timeB = b.checkinTime ? new Date(`${b.visit_date}T${b.checkinTime}`).getTime() : 0;
+                  return timeA - timeB;
+                });
+
+                const visitsContent = `
+                  <div class="tab-content visits-tab" data-tab="visits">
+                    <div class="visits-header">
+                      <span class="visits-title">Today's Journey</span>
+                      <span class="visits-count">${sortedVisits.length} visits</span>
+                    </div>
+                    <div class="visits-container">
+                      ${sortedVisits.length > 0 ? 
+                        `<div class="visits-list">
+                          ${sortedVisits.map((visit: any, index: number) => `
+                            <div class="visit-item">
+                              <div class="visit-marker">
+                                <div class="time-badge">
+                                  ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}
+                                </div>
+                                <div class="visit-line"></div>
+                              </div>
+                              <div class="visit-details">
+                                <div class="visit-primary">
+                                  <span class="store-name">${visit.storeName}</span>
+                                  <span class="visit-number">${index + 1}</span>
+                                </div>
+                                <div class="visit-secondary">
+                                  <span class="purpose-tag">${visit.purpose || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          `).join('')}
+                        </div>`
+                        : '<div class="no-visits">No visits recorded today</div>'
+                      }
+                    </div>
+                  </div>
+                `;
+
+                const popupContent = `
+                  <div class="map-popup">
+                    <div class="popup-tabs">
+                      <button class="tab-button active" data-tab="info">Info</button>
+                      <button class="tab-button" data-tab="visits">Visits (${visits.length})</button>
+                    </div>
+
+                    <div class="tab-content info-tab active" data-tab="info">
+                      <div class="employee-info">
+                        <div class="employee-header">
+                          <h3>${employeeData.firstName} ${employeeData.lastName}</h3>
+                          <span class="employee-role">${employeeData.role}</span>
+                        </div>
+                        <div class="location-info">
+                          <div class="info-item">
+                            <span class="info-label">Current Location</span>
+                            <span class="info-value">Last seen at ${formattedDateTime}</span>
+                          </div>
+                          ${employeeData.houseLatitude ? `
+                            <div class="info-item">
+                              <span class="info-label">Home Location</span>
+                              <span class="info-value">${employeeData.addressLine1}, ${employeeData.city}</span>
+                            </div>
+                          ` : ''}
+                          <div class="info-item">
+                            <span class="info-label">Contact</span>
+                            <span class="info-value">${employeeData.primaryContact}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="tab-content visits-tab" data-tab="visits">
+                      <div class="visits-wrapper">
+                        ${sortedVisits.length > 0 ? 
+                          `<div class="visits-list">
+                            ${sortedVisits.map((visit: any, index: number) => `
+                              <div class="visit-item">
+                                <div class="visit-time">
+                                  ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}
+                                </div>
+                                <div class="visit-content">
+                                  <div class="visit-main-info">
+                                    <div class="visit-store-name">${visit.storeName}</div>
+                                    <div class="visit-badge">#${index + 1}</div>
+                                  </div>
+                                  <div class="visit-sub-info">
+                                    <span class="visit-purpose">${visit.purpose || 'N/A'}</span>
+                                    ${visit.visitLatitude ? `
+                                      <span class="visit-location-dot">•</span>
+                                      <span class="visit-coords">
+                                        ${visit.visitLatitude.toFixed(6)}, ${visit.visitLongitude.toFixed(6)}
+                                      </span>
+                                    ` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                            `).join('')}
+                          </div>`
+                          : '<p class="no-visits">No visits recorded today</p>'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                `;
+
+                const popup = new Popup({ 
+                  offset: 25,
+                  maxWidth: '350px',
+                  anchor: 'bottom',
+                }).setHTML(popupContent);
+                
+                const mapHeight = map.current!.getContainer().offsetHeight;
+                const markerPoint = map.current!.project(marker.getLngLat());
+
+                if (markerPoint.y > (mapHeight * 0.7)) {
+                  popup.setOffset([0, -10]);
+                  popup.options.anchor = 'top';
+                }
+
+                popup.setLngLat(marker.getLngLat());
+                popup.addTo(map.current!);
+                currentPopup = popup;
+
+                const popupElement = popup.getElement();
+                if (popupElement) {
+                  const bounds = new maplibregl.LngLatBounds()
+                    .extend(marker.getLngLat());
+                  
+                  map.current!.fitBounds(bounds, {
+                    padding: { top: 150, bottom: 150, left: 50, right: 50 },
+                    maxZoom: map.current!.getZoom()
+                  });
+                }
+
+                const tabButtons = popupElement.querySelectorAll('.tab-button');
+                tabButtons.forEach(button => {
+                  button.addEventListener('click', (e) => {
+                    const target = e.target as HTMLElement;
+                    const tabName = target.dataset.tab;
+                    
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    target.classList.add('active');
+                    
+                    const tabContents = popupElement.querySelectorAll('.tab-content');
+                    tabContents.forEach(content => {
+                      content.classList.remove('active');
+                      if (content.getAttribute('data-tab') === tabName) {
+                        content.classList.add('active');
+                      }
+                    });
+                  });
+                });
+
+              } catch (error) {
+                console.error('Error fetching data:', error);
+              }
             });
           });
 
