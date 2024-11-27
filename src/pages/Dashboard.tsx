@@ -73,6 +73,27 @@ const StateCard: React.FC<StateCardProps> = ({ state, totalEmployees, onClick })
   );
 };
 
+interface VisitResponse {
+  statsDto: {
+    visitCount: number;
+    fullDays: number;
+    halfDays: number;
+    absences: number;
+  };
+  visitDto: Array<{
+    id: number;
+    storeName: string;
+    checkinLatitude: number | null;
+    checkinLongitude: number | null;
+    visit_date: string;
+    checkinTime: string;
+    checkoutTime: string | null;
+    purpose: string;
+    city: string;
+    state: string;
+  }>;
+}
+
 const Dashboard: React.FC = () => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -558,10 +579,10 @@ const Dashboard: React.FC = () => {
                                   </div>
                                   <div class="visit-sub-info">
                                     <span class="visit-purpose">${visit.purpose || 'N/A'}</span>
-                                    ${visit.visitLatitude ? `
+                                    ${visit.checkinLatitude ? `
                                       <span class="visit-location-dot">•</span>
                                       <span class="visit-coords">
-                                        ${visit.visitLatitude.toFixed(6)}, ${visit.visitLongitude.toFixed(6)}
+                                        ${visit.checkinLatitude.toFixed(6)}, ${visit.checkinLongitude.toFixed(6)}
                                       </span>
                                     ` : ''}
                                   </div>
@@ -658,13 +679,198 @@ const Dashboard: React.FC = () => {
 
   const handleEmployeeLocationClick = useCallback((location: EmployeeLocation) => {
     if (map.current) {
-      map.current.flyTo({
-        center: [location.longitude, location.latitude],
-        zoom: 14,
-        essential: true,
+      // Clear existing markers
+      map.current.getCanvasContainer().querySelectorAll('.maplibregl-marker').forEach((marker) => {
+        marker.remove();
+      });
+
+      Promise.all([
+        axios.get(`${API_BASE_URL}/employee/getById?id=${location.empId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get<VisitResponse>(`${API_BASE_URL}/visit/getByDateRangeAndEmployeeStats`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            id: location.empId,
+            start: format(new Date(), 'yyyy-MM-dd'),
+            end: format(new Date(), 'yyyy-MM-dd')
+          }
+        })
+      ]).then(([employeeResponse, visitsResponse]) => {
+        const employeeData = employeeResponse.data;
+        const employeeName = `${employeeData.firstName} ${employeeData.lastName}`;
+        const visits = visitsResponse.data.visitDto;
+        const bounds = new maplibregl.LngLatBounds();
+
+        // Calculate bounds first
+        bounds.extend([location.longitude, location.latitude]);
+        if (employeeData.houseLatitude && employeeData.houseLongitude) {
+          bounds.extend([employeeData.houseLongitude, employeeData.houseLatitude]);
+        }
+        visits.forEach(visit => {
+          if (visit.checkinLatitude && visit.checkinLongitude) {
+            bounds.extend([visit.checkinLongitude!, visit.checkinLatitude!]);
+          }
+        });
+
+        // Fit map immediately
+        if (!bounds.isEmpty()) {
+          map.current!.fitBounds(bounds, {
+            padding: { top: 100, bottom: 100, left: 100, right: 100 },
+            duration: 0
+          });
+        }
+
+        // Add visit location pins
+        visits.forEach((visit, index) => {
+          if (visit.checkinLatitude && visit.checkinLongitude) {
+            const visitMarker = new Marker({ color: '#3B82F6' })
+              .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
+              .addTo(map.current!);
+            
+            visitMarker.getElement().addEventListener('mouseenter', () => {
+              new Popup({
+                offset: 25,
+                closeButton: false,
+                className: 'map-popup'
+              })
+              .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
+              .setHTML(`
+                <div class="popup-card">
+                  <div class="popup-header">
+                    <div class="popup-title-wrapper">
+                      <div class="popup-title">${employeeName}</div>
+                      <div class="popup-badge visit">Visit #${index + 1}</div>
+                    </div>
+                    <button class="popup-close" aria-label="Close popup">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="popup-body">
+                    <div class="popup-info">
+                      <div class="store-name">${visit.storeName}</div>
+                      <div class="time-info">
+                        <div>Check-in: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
+                        ${visit.checkoutTime ? 
+                          `<div>Check-out: ${format(parseISO(`${visit.visit_date}T${visit.checkoutTime}`), 'h:mm a')}</div>` 
+                          : '<div>Not checked out yet</div>'
+                        }
+                      </div>
+                      ${visit.purpose ? `<div class="visit-purpose">Purpose: ${visit.purpose}</div>` : ''}
+                      <div class="visit-location">${visit.city}, ${visit.state}</div>
+                    </div>
+                  </div>
+                </div>
+              `)
+              .addTo(map.current!);
+
+              // Add click handler for close button
+              const popup = document.querySelector('.maplibregl-popup:last-child');
+              if (popup) {
+                const closeButton = popup.querySelector('.popup-close');
+                closeButton?.addEventListener('click', () => {
+                  popup.remove();
+                });
+              }
+            });
+          }
+        });
+
+        // Add current location pin
+        const currentMarker = new Marker({ color: '#22C55E' })
+          .setLngLat([location.longitude, location.latitude])
+          .addTo(map.current!);
+        
+        currentMarker.getElement().addEventListener('mouseenter', () => {
+          new Popup({
+            offset: 25,
+            closeButton: false,
+            className: 'map-popup'
+          })
+          .setLngLat([location.longitude, location.latitude])
+          .setHTML(`
+            <div class="popup-card">
+              <div class="popup-header">
+                <div class="popup-title-wrapper">
+                  <div class="popup-title">${employeeName}</div>
+                  <div class="popup-badge current">Current Location</div>
+                </div>
+                <button class="popup-close" aria-label="Close popup">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="popup-body">
+                <div class="popup-info">
+                  Last seen at ${format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a')}
+                </div>
+              </div>
+            </div>
+          `)
+          .addTo(map.current!);
+
+          // Add click handler for close button
+          const popup = document.querySelector('.maplibregl-popup:last-child');
+          if (popup) {
+            const closeButton = popup.querySelector('.popup-close');
+            closeButton?.addEventListener('click', () => {
+              popup.remove();
+            });
+          }
+        });
+
+        // Add home location pin
+        if (employeeData.houseLatitude && employeeData.houseLongitude) {
+          const homeMarker = new Marker({ color: '#EF4444' })
+            .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
+            .addTo(map.current!);
+          
+          homeMarker.getElement().addEventListener('mouseenter', () => {
+            new Popup({
+              offset: 25,
+              closeButton: false,
+              className: 'map-popup'
+            })
+            .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
+            .setHTML(`
+              <div class="popup-card">
+                <div class="popup-header">
+                  <div class="popup-title-wrapper">
+                    <div class="popup-title">${employeeName}</div>
+                    <div class="popup-badge home">Home Location</div>
+                  </div>
+                  <button class="popup-close" aria-label="Close popup">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="popup-body">
+                  <div class="popup-info">
+                    <div class="address">${employeeData.addressLine1 || 'Address not available'}</div>
+                    <div class="location">${employeeData.city}, ${employeeData.state}</div>
+                  </div>
+                </div>
+              </div>
+            `)
+            .addTo(map.current!);
+
+            // Add click handler for close button
+            const popup = document.querySelector('.maplibregl-popup:last-child');
+            if (popup) {
+              const closeButton = popup.querySelector('.popup-close');
+              closeButton?.addEventListener('click', () => {
+                popup.remove();
+              });
+            }
+          });
+        }
       });
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (token && username && !role) {
@@ -856,7 +1062,26 @@ const Dashboard: React.FC = () => {
                   <>
                     {employeeLocations.length > 0 ? (
                       <>
-                        <div ref={mapContainer} className="rounded-lg border-2 border-gray-300 shadow-lg mb-4" style={{ width: '100%', height: '600px' }} />
+                        <div className="relative">
+                          <div ref={mapContainer} className="rounded-lg border-2 border-gray-300 shadow-lg mb-4" style={{ width: '100%', height: '600px' }} />
+                          <div className="absolute bottom-6 left-6 bg-white p-3 rounded-lg shadow-md">
+                            <div className="text-sm font-semibold mb-2">Map Legend</div>
+                            <div className="space-y-2">
+                              <div className="flex items-center">
+                                <div className="w-4 h-4 rounded-full bg-[#22C55E] mr-2"></div>
+                                <span>Current Location</span>
+                              </div>
+                              <div className="flex items-center">
+                                <div className="w-4 h-4 rounded-full bg-[#EF4444] mr-2"></div>
+                                <span>Home Location</span>
+                              </div>
+                              <div className="flex items-center">
+                                <div className="w-4 h-4 rounded-full bg-[#3B82F6] mr-2"></div>
+                                <span>Visits</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         <EmployeeLocationList employeeLocations={employeeLocations} onEmployeeClick={handleEmployeeLocationClick} />
                       </>
                     ) : (
