@@ -242,441 +242,6 @@ const Dashboard: React.FC = () => {
     }
   }, [router.query, router]);
 
-  const handleEmployeeClick = useCallback(async (employeeName: string) => {
-    setSelectedEmployee(employeeName.trim().toLowerCase());
-    router.push({
-      pathname: '/Dashboard',
-      query: {
-        state: selectedState,
-        employee: employeeName.trim().toLowerCase(),
-      },
-    }, undefined, { shallow: true });
-
-    fetchEmployeeDetails(employeeName, startDate, endDate);
-  }, [fetchEmployeeDetails, router, selectedState, startDate, endDate]);
-
-  const handleDateRangeChange = useCallback((start: string, end: string, option: string) => {
-    setStartDate(start);
-    setEndDate(end);
-    setSelectedOption(option);
-
-    if (selectedEmployee) {
-      fetchEmployeeDetails(selectedEmployee, start, end);
-    } else {
-      fetchVisits(start, end);
-    }
-  }, [fetchEmployeeDetails, fetchVisits, selectedEmployee]);
-
-  const handleViewDetails = useCallback((visitId: number) => {
-    router.push({
-      pathname: `/VisitDetailPage/${visitId}`,
-      query: {
-        returnTo: 'employeeDetails',
-        employeeId: selectedEmployee,
-        startDate: startDate,
-        endDate: endDate,
-      },
-    });
-  }, [router, selectedEmployee, startDate, endDate]);
-
-  const getAccessToken = useCallback(async () => {
-    try {
-      const response = await axios.post(
-        'https://account.olamaps.io/realms/olamaps/protocol/openid-connect/token',
-        new URLSearchParams({
-          grant_type: 'client_credentials',
-          scope: 'openid',
-          client_id: OLA_CLIENT_ID,
-          client_secret: OLA_CLIENT_SECRET
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      setAccessToken(response.data.access_token);
-    } catch (error) {
-      console.error('Error getting access token:', error);
-    }
-  }, []);
-
-  const handleStateClick = useCallback((state: string) => {
-    setSelectedState(state.trim().toLowerCase() || 'unknown');
-    setSelectedEmployee(null);
-    setIsMainDashboard(false);
-    router.push({
-      pathname: '/Dashboard',
-      query: { state: state.trim().toLowerCase() || 'unknown' },
-    }, undefined, { shallow: true });
-  }, [router]);
-
-  const handleBackToMainDashboard = useCallback(() => {
-    setSelectedState(null);
-    setSelectedEmployee(null);
-    setIsMainDashboard(true);
-    setMapError(null);
-    fetchAllEmployeeLocations();
-    router.push('/Dashboard', undefined, { shallow: true });
-  }, [router]);
-
-  const fetchAllEmployeeLocations = useCallback(async () => {
-    setIsMapLoading(true);
-    setMapError(null);
-
-    try {
-      if (role === 'MANAGER') {
-        if (!teamMembers.length) {
-          setEmployeeLocations([]);
-          return;
-        }
-
-        const locationPromises = teamMembers.map((employeeId) =>
-          axios.get(`${API_BASE_URL}/employee/getLiveLocation?id=${employeeId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(error => {
-            console.log(`No live location for employee ${employeeId}`);
-            return null;
-          })
-        );
-
-        const locationResponses = await Promise.all(locationPromises);
-        const locations = locationResponses
-          .filter((response): response is AxiosResponse<EmployeeLocation> => response !== null && response.data)
-          .map((response) => response.data)
-          .filter(location => location.latitude && location.longitude);
-
-        setEmployeeLocations(locations);
-
-        if (locations.length > 0 && accessToken) {
-          await initializeMap(locations);
-        } else {
-          setMapError("No employee locations available");
-        }
-      } else {
-        const employeesResponse = await axios.get(`${API_BASE_URL}/employee/getAll`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        const locationPromises = employeesResponse.data.map((employee: any) =>
-          axios.get(`${API_BASE_URL}/employee/getLiveLocation?id=${employee.id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(error => {
-            console.log(`No live location for employee ${employee.id}`);
-            return null;
-          })
-        );
-
-        const locationResponses = await Promise.all(locationPromises);
-        const locations = locationResponses
-          .filter((response): response is AxiosResponse<EmployeeLocation> => response !== null && response.data)
-          .map((response) => response.data)
-          .filter(location => location.latitude && location.longitude);
-
-        setEmployeeLocations(locations);
-
-        if (locations.length > 0 && accessToken) {
-          await initializeMap(locations);
-        } else {
-          setMapError("No employee locations available");
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching employee locations:', error);
-      setMapError("Failed to fetch employee locations");
-    } finally {
-      setIsMapLoading(false);
-    }
-  }, [token, accessToken, role, teamMembers]);
-
-  const fetchLatestVisit = useCallback(async (employeeName: string) => {
-    const today = new Date();
-    const startDate = today.getDate() <= 7 ? format(subDays(today, today.getDate() + 23), 'yyyy-MM-dd') : format(subDays(today, 30), 'yyyy-MM-dd');
-    const endDate = format(today, 'yyyy-MM-dd');
-
-    try {
-      const response = await axios.get(`${API_BASE_URL}/visit/getByDateSorted`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          startDate: startDate,
-          endDate: endDate,
-          page: 0,
-          size: 1,
-          sort: 'visitDate,desc',
-          employeeName: employeeName
-        }
-      });
-
-      const visitData = response.data.content[0];
-      return visitData;
-    } catch (error) {
-      console.error('Error fetching latest visit:', error);
-      return null;
-    }
-  }, [token]);
-
-  const initializeMap = useCallback(async (locations: EmployeeLocation[]) => {
-    if (mapContainer.current && accessToken) {
-      if (map.current) {
-        map.current.remove();
-      }
-
-      try {
-        const styleResponse = await axios.get(MAP_STYLE_URL, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
-
-        const style = styleResponse.data;
-
-        style.layers = style.layers.filter((layer: any) =>
-          !['poi-vectordata', 'poi'].includes(layer.id)
-        );
-
-        map.current = new MapLibreMap({
-          container: mapContainer.current,
-          style: style,
-          center: [78.9629, 20.5937],
-          zoom: 4,
-          transformRequest: (url, resourceType) => {
-            if (url.startsWith('https://api.olamaps.io')) {
-              return {
-                url: url,
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`
-                },
-              };
-            }
-          },
-        });
-
-        let currentPopup: Popup | null = null;
-
-        map.current.on('load', () => {
-          map.current!.addControl(new NavigationControl(), 'top-left');
-
-          locations.forEach(async (location, index) => {
-            const color = `hsl(${(index * 137.508) % 360}, 70%, 50%)`;
-            const marker = new Marker({ color: color })
-              .setLngLat([location.longitude, location.latitude])
-              .addTo(map.current!);
-
-            const updatedDateTime = parseISO(`${location.updatedAt}T${location.updatedTime}`);
-            const formattedDateTime = format(updatedDateTime, "d MMM ''yy h:mm a");
-
-            marker.getElement().addEventListener('mouseenter', async () => {
-              if (currentPopup) {
-                currentPopup.remove();
-                currentPopup = null;
-              }
-
-              try {
-                const [employeeResponse, checkinsResponse] = await Promise.all([
-                  axios.get(`${API_BASE_URL}/employee/getById?id=${location.empId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                  }),
-                  axios.get(`${API_BASE_URL}/visit/getByDateRangeAndEmployeeStats`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    params: {
-                      id: location.empId,
-                      start: format(new Date(), 'yyyy-MM-dd'),
-                      end: format(new Date(), 'yyyy-MM-dd')
-                    }
-                  })
-                ]);
-
-                const employeeData = employeeResponse.data;
-                const checkinsData = checkinsResponse.data;
-                const visits = checkinsData.visitDto || [];
-                
-                const sortedVisits = visits.sort((a: any, b: any) => {
-                  const timeA = a.checkinTime ? new Date(`${a.visit_date}T${a.checkinTime}`).getTime() : 0;
-                  const timeB = b.checkinTime ? new Date(`${b.visit_date}T${b.checkinTime}`).getTime() : 0;
-                  return timeA - timeB;
-                });
-
-                const visitsContent = `
-                  <div class="tab-content visits-tab" data-tab="visits">
-                    <div class="visits-header">
-                      <span class="visits-title">Today's Journey</span>
-                      <span class="visits-count">${sortedVisits.length} visits</span>
-                    </div>
-                    <div class="visits-container">
-                      ${sortedVisits.length > 0 ? 
-                        `<div class="visits-list">
-                          ${sortedVisits.map((visit: any, index: number) => `
-                            <div class="visit-item">
-                              <div class="visit-marker">
-                                <div class="time-badge">
-                                  ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}
-                                </div>
-                                <div class="visit-line"></div>
-                              </div>
-                              <div class="visit-details">
-                                <div class="visit-primary">
-                                  <span class="store-name">${visit.storeName}</span>
-                                  <span class="visit-number">${index + 1}</span>
-                                </div>
-                                <div class="visit-secondary">
-                                  <span class="purpose-tag">${visit.purpose || 'N/A'}</span>
-                                </div>
-                              </div>
-                            </div>
-                          `).join('')}
-                        </div>`
-                        : '<div class="no-visits">No visits recorded today</div>'
-                      }
-                    </div>
-                  </div>
-                `;
-
-                const popupContent = `
-                  <div class="map-popup">
-                    <div class="popup-tabs">
-                      <button class="tab-button active" data-tab="info">Info</button>
-                      <button class="tab-button" data-tab="visits">Visits (${visits.length})</button>
-                    </div>
-
-                    <div class="tab-content info-tab active" data-tab="info">
-                      <div class="employee-info">
-                        <div class="employee-header">
-                          <h3>${employeeData.firstName} ${employeeData.lastName}</h3>
-                          <span class="employee-role">${employeeData.role}</span>
-                        </div>
-                        <div class="location-info">
-                          <div class="info-item">
-                            <span class="info-label">Current Location</span>
-                            <span class="info-value">Last seen at ${formattedDateTime}</span>
-                          </div>
-                          ${employeeData.houseLatitude ? `
-                            <div class="info-item">
-                              <span class="info-label">Home Location</span>
-                              <span class="info-value">${employeeData.addressLine1}, ${employeeData.city}</span>
-                            </div>
-                          ` : ''}
-                          <div class="info-item">
-                            <span class="info-label">Contact</span>
-                            <span class="info-value">${employeeData.primaryContact}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="tab-content visits-tab" data-tab="visits">
-                      <div class="visits-wrapper">
-                        ${sortedVisits.length > 0 ? 
-                          `<div class="visits-list">
-                            ${sortedVisits.map((visit: any, index: number) => `
-                              <div class="visit-item">
-                                <div class="visit-time">
-                                  ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}
-                                </div>
-                                <div class="visit-content">
-                                  <div class="visit-main-info">
-                                    <div class="visit-store-name">${visit.storeName}</div>
-                                    <div class="visit-badge">#${index + 1}</div>
-                                  </div>
-                                  <div class="visit-sub-info">
-                                    <span class="visit-purpose">${visit.purpose || 'N/A'}</span>
-                                    ${visit.checkinLatitude ? `
-                                      <span class="visit-location-dot">•</span>
-                                      <span class="visit-coords">
-                                        ${visit.checkinLatitude.toFixed(6)}, ${visit.checkinLongitude.toFixed(6)}
-                                      </span>
-                                    ` : ''}
-                                  </div>
-                                </div>
-                              </div>
-                            `).join('')}
-                          </div>`
-                          : '<p class="no-visits">No visits recorded today</p>'
-                        }
-                      </div>
-                    </div>
-                  </div>
-                `;
-
-                const popup = new Popup({ 
-                  offset: 25,
-                  maxWidth: '350px',
-                  anchor: 'bottom',
-                }).setHTML(popupContent);
-                
-                const mapHeight = map.current!.getContainer().offsetHeight;
-                const markerPoint = map.current!.project(marker.getLngLat());
-
-                if (markerPoint.y > (mapHeight * 0.7)) {
-                  popup.setOffset([0, -10]);
-                  popup.options.anchor = 'top';
-                }
-
-                popup.setLngLat(marker.getLngLat());
-                popup.addTo(map.current!);
-                currentPopup = popup;
-
-                const popupElement = popup.getElement();
-                if (popupElement) {
-                  const bounds = new maplibregl.LngLatBounds()
-                    .extend(marker.getLngLat());
-                  
-                  map.current!.fitBounds(bounds, {
-                    padding: { top: 150, bottom: 150, left: 50, right: 50 },
-                    maxZoom: map.current!.getZoom()
-                  });
-                }
-
-                const tabButtons = popupElement.querySelectorAll('.tab-button');
-                tabButtons.forEach(button => {
-                  button.addEventListener('click', (e) => {
-                    const target = e.target as HTMLElement;
-                    const tabName = target.dataset.tab;
-                    
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    target.classList.add('active');
-                    
-                    const tabContents = popupElement.querySelectorAll('.tab-content');
-                    tabContents.forEach(content => {
-                      content.classList.remove('active');
-                      if (content.getAttribute('data-tab') === tabName) {
-                        content.classList.add('active');
-                      }
-                    });
-                  });
-                });
-
-              } catch (error) {
-                console.error('Error fetching data:', error);
-              }
-            });
-          });
-
-          const bounds = new maplibregl.LngLatBounds();
-          locations.forEach(location => {
-            bounds.extend([location.longitude, location.latitude]);
-          });
-          map.current!.fitBounds(bounds, { padding: 50 });
-        });
-
-        map.current.on('mousemove', () => {
-          if (currentPopup && !currentPopup.isOpen()) {
-            currentPopup.remove();
-            currentPopup = null;
-          }
-        });
-
-        map.current.on('error', (e) => {
-          console.error('Map error:', e);
-          setMapError(`Map error: ${e.error.message}`);
-        });
-
-      } catch (error) {
-        console.error('Error initializing map:', error);
-        setMapError("Failed to initialize map");
-      }
-    }
-  }, [accessToken, fetchLatestVisit, employeeInfo]);
-
   const handleEmployeeLocationClick = useCallback((location: EmployeeLocation) => {
     if (map.current) {
       // Clear existing markers
@@ -692,8 +257,8 @@ const Dashboard: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
           params: {
             id: location.empId,
-            start: format(new Date(), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: startDate,
+            end: endDate
           }
         })
       ]).then(([employeeResponse, visitsResponse]) => {
@@ -752,7 +317,8 @@ const Dashboard: React.FC = () => {
                     <div class="popup-info">
                       <div class="store-name">${visit.storeName}</div>
                       <div class="time-info">
-                        <div>Check-in: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
+                        <div class="check-date">Check-in Date: ${format(parseISO(visit.visit_date), 'MMM dd, yyyy')}</div>
+                        <div>Check-in Time: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
                         ${visit.checkoutTime ? 
                           `<div>Check-out: ${format(parseISO(`${visit.visit_date}T${visit.checkoutTime}`), 'h:mm a')}</div>` 
                           : '<div>Not checked out yet</div>'
@@ -869,6 +435,290 @@ const Dashboard: React.FC = () => {
           });
         }
       });
+    }
+  }, [token, startDate, endDate]);
+
+  const handleEmployeeClick = useCallback(async (employeeName: string) => {
+    setSelectedEmployee(employeeName.trim().toLowerCase());
+    router.push({
+      pathname: '/Dashboard',
+      query: {
+        state: selectedState,
+        employee: employeeName.trim().toLowerCase(),
+      },
+    }, undefined, { shallow: true });
+
+    fetchEmployeeDetails(employeeName, startDate, endDate);
+    
+    const selectedLocation = employeeLocations.find(loc => 
+      loc.empName.toLowerCase() === employeeName.trim().toLowerCase()
+    );
+    
+    if (selectedLocation) {
+      handleEmployeeLocationClick(selectedLocation);
+    }
+  }, [
+    fetchEmployeeDetails, 
+    router, 
+    selectedState, 
+    startDate, 
+    endDate, 
+    employeeLocations, 
+    handleEmployeeLocationClick
+  ]);
+
+  const handleDateRangeChange = useCallback((start: string, end: string, option: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    setSelectedOption(option);
+
+    if (selectedEmployee) {
+      fetchEmployeeDetails(selectedEmployee, start, end);
+      
+      const selectedLocation = employeeLocations.find(loc => 
+        loc.empName.toLowerCase() === selectedEmployee.toLowerCase()
+      );
+      
+      if (selectedLocation) {
+        handleEmployeeLocationClick(selectedLocation);
+      }
+    } else {
+      fetchVisits(start, end);
+    }
+  }, [
+    fetchEmployeeDetails, 
+    fetchVisits, 
+    selectedEmployee, 
+    employeeLocations, 
+    handleEmployeeLocationClick
+  ]);
+
+  const handleViewDetails = useCallback((visitId: number) => {
+    router.push({
+      pathname: `/VisitDetailPage/${visitId}`,
+      query: {
+        returnTo: 'employeeDetails',
+        employeeId: selectedEmployee,
+        startDate: startDate,
+        endDate: endDate,
+      },
+    });
+  }, [router, selectedEmployee, startDate, endDate]);
+
+  const getAccessToken = useCallback(async () => {
+    try {
+      const response = await axios.post(
+        'https://account.olamaps.io/realms/olamaps/protocol/openid-connect/token',
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          scope: 'openid',
+          client_id: OLA_CLIENT_ID,
+          client_secret: OLA_CLIENT_SECRET
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      setAccessToken(response.data.access_token);
+    } catch (error) {
+      console.error('Error getting access token:', error);
+    }
+  }, []);
+
+  const handleStateClick = useCallback((state: string) => {
+    setSelectedState(state.trim().toLowerCase() || 'unknown');
+    setSelectedEmployee(null);
+    setIsMainDashboard(false);
+    router.push({
+      pathname: '/Dashboard',
+      query: { state: state.trim().toLowerCase() || 'unknown' },
+    }, undefined, { shallow: true });
+  }, [router]);
+
+  const handleBackToMainDashboard = useCallback(() => {
+    setSelectedState(null);
+    setSelectedEmployee(null);
+    setIsMainDashboard(true);
+    setMapError(null);
+    fetchAllEmployeeLocations();
+    router.push('/Dashboard', undefined, { shallow: true });
+  }, [router]);
+
+  const initializeMap = useCallback(async (locations: EmployeeLocation[]) => {
+    if (!mapContainer.current || !accessToken) return;
+
+    try {
+      // Clear existing map
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+
+      const styleResponse = await axios.get(MAP_STYLE_URL, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+
+      const style = styleResponse.data;
+
+      style.layers = style.layers.filter((layer: any) =>
+        !['poi-vectordata', 'poi'].includes(layer.id)
+      );
+
+      // Create new map instance
+      map.current = new MapLibreMap({
+        container: mapContainer.current,
+        style: style,
+        center: [78.9629, 20.5937],
+        zoom: 4,
+        transformRequest: (url, resourceType) => {
+          if (url.startsWith('https://api.olamaps.io')) {
+            return {
+              url: url,
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              },
+            };
+          }
+        },
+      });
+
+      // Wait for map to load before adding markers
+      await new Promise<void>((resolve) => {
+        map.current!.on('load', () => {
+          resolve();
+        });
+      });
+
+      // Add navigation control
+      map.current.addControl(new NavigationControl(), 'top-left');
+
+      // Add markers for all locations
+      locations.forEach((location, index) => {
+        const color = `hsl(${(index * 137.508) % 360}, 70%, 50%)`;
+        new Marker({ color: color })
+          .setLngLat([location.longitude, location.latitude])
+          .addTo(map.current!);
+      });
+
+      // Fit bounds to show all markers
+      if (locations.length > 0) {
+        const bounds = new maplibregl.LngLatBounds();
+        locations.forEach(location => {
+          bounds.extend([location.longitude, location.latitude]);
+        });
+        map.current.fitBounds(bounds, { 
+          padding: 50,
+          maxZoom: 15 
+        });
+      }
+
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setMapError("Failed to initialize map");
+    }
+  }, [accessToken]);
+
+  const fetchAllEmployeeLocations = useCallback(async () => {
+    setIsMapLoading(true);
+    setMapError(null);
+
+    try {
+      // Clear existing map instance
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+
+      let locations: EmployeeLocation[] = [];
+
+      if (role === 'MANAGER') {
+        if (!teamMembers.length) {
+          setEmployeeLocations([]);
+          return;
+        }
+
+        const locationPromises = teamMembers.map((employeeId) =>
+          axios.get(`${API_BASE_URL}/employee/getLiveLocation?id=${employeeId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(error => {
+            console.log(`No live location for employee ${employeeId}`);
+            return null;
+          })
+        );
+
+        const locationResponses = await Promise.all(locationPromises);
+        locations = locationResponses
+          .filter((response): response is AxiosResponse<EmployeeLocation> => response !== null && response.data)
+          .map((response) => response.data)
+          .filter(location => location.latitude && location.longitude);
+
+      } else {
+        const employeesResponse = await axios.get(`${API_BASE_URL}/employee/getAll`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const locationPromises = employeesResponse.data.map((employee: any) =>
+          axios.get(`${API_BASE_URL}/employee/getLiveLocation?id=${employee.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(error => {
+            console.log(`No live location for employee ${employee.id}`);
+            return null;
+          })
+        );
+
+        const locationResponses = await Promise.all(locationPromises);
+        locations = locationResponses
+          .filter((response): response is AxiosResponse<EmployeeLocation> => response !== null && response.data)
+          .map((response) => response.data)
+          .filter(location => location.latitude && location.longitude);
+      }
+
+      setEmployeeLocations(locations);
+
+      if (locations.length > 0 && accessToken) {
+        // Wait for the DOM to update
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        // Initialize new map
+        await initializeMap(locations);
+      } else {
+        setMapError("No employee locations available");
+      }
+    } catch (error) {
+      console.error('Error fetching employee locations:', error);
+      setMapError("Failed to fetch employee locations");
+    } finally {
+      setIsMapLoading(false);
+    }
+  }, [token, accessToken, role, teamMembers, initializeMap]);
+
+  const fetchLatestVisit = useCallback(async (employeeName: string) => {
+    const today = new Date();
+    const startDate = today.getDate() <= 7 ? format(subDays(today, today.getDate() + 23), 'yyyy-MM-dd') : format(subDays(today, 30), 'yyyy-MM-dd');
+    const endDate = format(today, 'yyyy-MM-dd');
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/visit/getByDateSorted`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate,
+          page: 0,
+          size: 1,
+          sort: 'visitDate,desc',
+          employeeName: employeeName
+        }
+      });
+
+      const visitData = response.data.content[0];
+      return visitData;
+    } catch (error) {
+      console.error('Error fetching latest visit:', error);
+      return null;
     }
   }, [token]);
 
@@ -1000,6 +850,38 @@ const Dashboard: React.FC = () => {
     </div>
   );
 
+  const handleResetMap = useCallback(async () => {
+    setIsMapLoading(true);
+    try {
+      // Clear existing map
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+
+      // Get fresh access token
+      await getAccessToken();
+      
+      // Reset all states to initial values
+      setSelectedState(null);
+      setSelectedEmployee(null);
+      setIsMainDashboard(true);
+      setMapError(null);
+
+      // Fetch fresh data
+      await Promise.all([
+        fetchVisits(startDate, endDate),
+        fetchAllEmployeeLocations()
+      ]);
+
+    } catch (error) {
+      console.error('Error resetting map:', error);
+      setMapError("Failed to reset map view");
+    } finally {
+      setIsMapLoading(false);
+    }
+  }, [getAccessToken, fetchVisits, fetchAllEmployeeLocations, startDate, endDate]);
+
   return (
     <div className="container-dashboard mx-auto py-8 px-4">
       {selectedState && !selectedEmployee ? (
@@ -1064,6 +946,30 @@ const Dashboard: React.FC = () => {
                       <>
                         <div className="relative">
                           <div ref={mapContainer} className="rounded-lg border-2 border-gray-300 shadow-lg mb-4" style={{ width: '100%', height: '600px' }} />
+                          <div className="absolute top-4 right-4 z-10">
+                            <Button 
+                              variant="secondary" 
+                              size="sm" 
+                              onClick={handleResetMap}
+                              className="bg-white shadow-md hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                width="16" 
+                                height="16" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                              >
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                              </svg>
+                              Reset Map View
+                            </Button>
+                          </div>
                           <div className="absolute bottom-6 left-6 bg-white p-3 rounded-lg shadow-md">
                             <div className="text-sm font-semibold mb-2">Map Legend</div>
                             <div className="space-y-2">

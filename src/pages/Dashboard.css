@@ -1333,3 +1333,24 @@
 .popup-close svg {
   display: block;
 }
+.popup-badge {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.popup-badge.current {
+  background-color: #DCFCE7;
+  color: #16A34A;
+}
+
+.popup-badge.home {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.popup-badge.visit {
+  background-color: #DBEAFE;
+  color: #2563EB;
+}
