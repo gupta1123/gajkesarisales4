@@ -1169,6 +1169,25 @@ const EmployeeList: React.FC = () => {
                   />
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={editingEmployee.role}
+                    onValueChange={(value) =>
+                      setEditingEmployee({ ...editingEmployee, role: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Field Officer">Field Officer</SelectItem>
+                      <SelectItem value="Manager">Regional Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
                   <Label htmlFor="city">City</Label>
                   <Input
                     id="city"
@@ -1177,8 +1196,6 @@ const EmployeeList: React.FC = () => {
                     onChange={handleEditInputChange}
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="state">State</Label>
                   <Input
@@ -1188,16 +1205,16 @@ const EmployeeList: React.FC = () => {
                     onChange={handleEditInputChange}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="dateOfJoining">Date of Joining</Label>
-                  <Input
-                    id="dateOfJoining"
-                    name="dateOfJoining"
-                    type="date"
-                    value={editingEmployee.dateOfJoining}
-                    onChange={handleEditInputChange}
-                  />
-                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                <Input
+                  id="dateOfJoining"
+                  name="dateOfJoining"
+                  type="date"
+                  value={editingEmployee.dateOfJoining}
+                  onChange={handleEditInputChange}
+                />
               </div>
             </div>
           )}
