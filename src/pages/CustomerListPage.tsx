@@ -126,8 +126,29 @@ function CustomerListContent() {
         let url = 'https://api.gajkesaristeels.in/store/filteredValues';
         const queryParams = new URLSearchParams();
 
+        const filterMapping: { [key: string]: string } = {
+            storeName: 'storeName',
+            primaryContact: 'primaryContact',
+            ownerName: 'clientName',
+            city: 'city',
+            state: 'state',
+            clientType: 'clientType',
+            employeeName: 'employeeName'
+        };
+
         Object.entries(filters).forEach(([key, value]) => {
-            if (value) queryParams.append(key, value.toString());
+            if (value && filterMapping[key]) {
+                if (key === 'primaryContact') {
+                    const cleanedPhone = value.toString().replace(/\D/g, '');
+                    if (cleanedPhone) {
+                        queryParams.append(filterMapping[key], cleanedPhone);
+                    }
+                } else if (key === 'ownerName') {
+                    queryParams.append(filterMapping[key], value.toString());
+                } else {
+                    queryParams.append(filterMapping[key], value.toString());
+                }
+            }
         });
 
         queryParams.append('page', (page - 1).toString());
@@ -137,12 +158,26 @@ function CustomerListContent() {
             queryParams.append('sortBy', sortColumn);
             queryParams.append('sortOrder', sortDirection);
         } else {
-            queryParams.append('sort', `${sortColumn},${sortDirection}`);
+            const sortMapping: { [key: string]: string } = {
+                ownerFirstName: 'clientFirstName',
+                storeName: 'storeName',
+                city: 'city',
+                state: 'state',
+                primaryContact: 'primaryContact',
+                monthlySale: 'monthlySale',
+                intent: 'intent',
+                employeeName: 'employeeName',
+                clientType: 'clientType',
+                email: 'email'
+            };
+
+            const mappedSortColumn = sortMapping[sortColumn] || sortColumn;
+            queryParams.append('sort', `${mappedSortColumn},${sortDirection}`);
         }
 
-        if (filters.employeeName) {
+        if (filters.employeeName && employeeId) {
             url = 'https://api.gajkesaristeels.in/store/getByEmployeeWithSort';
-            queryParams.append('id', employeeId?.toString() || '');
+            queryParams.append('id', employeeId.toString());
             queryParams.append('sortBy', sortColumn);
             queryParams.append('sortOrder', sortDirection);
         }
@@ -184,18 +219,32 @@ function CustomerListContent() {
     };
 
     const handleDesktopFilterChange = (filterName: keyof typeof desktopFilters, value: string) => {
-        setDesktopFilters((prevFilters) => ({
-            ...prevFilters,
-            [filterName]: value,
-        }));
+        if (filterName === 'ownerName') {
+            setDesktopFilters((prevFilters) => ({
+                ...prevFilters,
+                [filterName]: value.toLowerCase(),
+            }));
+        } else {
+            setDesktopFilters((prevFilters) => ({
+                ...prevFilters,
+                [filterName]: value,
+            }));
+        }
         setCurrentPage(1);
     };
 
     const handleMobileFilterChange = (filterName: keyof typeof mobileFilters, value: string) => {
-        setMobileFilters((prevFilters) => ({
-            ...prevFilters,
-            [filterName]: value,
-        }));
+        if (filterName === 'ownerName') {
+            setMobileFilters((prevFilters) => ({
+                ...prevFilters,
+                [filterName]: value.toLowerCase(),
+            }));
+        } else {
+            setMobileFilters((prevFilters) => ({
+                ...prevFilters,
+                [filterName]: value,
+            }));
+        }
     };
 
     const handleFilterClear = (filterName: keyof typeof desktopFilters) => {
@@ -304,6 +353,30 @@ function CustomerListContent() {
             }, 2000);
         }
     }, [token]);
+
+    const applyMobileFilters = () => {
+        setDesktopFilters(mobileFilters);
+        setIsMobileFilterExpanded(false);
+        setCurrentPage(1);
+        refetch();
+    };
+
+    const clearAllFilters = () => {
+        const emptyFilters = {
+            storeName: '',
+            primaryContact: '',
+            ownerName: '',
+            city: '',
+            state: '',
+            clientType: '',
+            employeeName: '',
+        };
+        setDesktopFilters(emptyFilters);
+        setMobileFilters(emptyFilters);
+        setCurrentPage(1);
+        refetch();
+    };
+
     const renderPagination = () => {
         const pageNumbers = [];
         const displayPages = 5;
@@ -525,8 +598,9 @@ function CustomerListContent() {
                             {renderFilterInput('clientType', 'Client Type', <FiTarget className="h-4 w-4" />, true)}
                             {renderFilterInput('employeeName', 'Field Officer', <FiBriefcase className="h-4 w-4" />, true)}
                         </div>
-                        <SheetFooter>
-                            <Button onClick={() => setIsMobileFilterExpanded(false)}>Apply Filters</Button>
+                        <SheetFooter className="flex gap-2">
+                            <Button variant="outline" onClick={clearAllFilters}>Clear All</Button>
+                            <Button onClick={applyMobileFilters}>Apply Filters</Button>
                         </SheetFooter>
                     </SheetContent>
                 </Sheet>

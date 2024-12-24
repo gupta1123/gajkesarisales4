@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/N6QS8FxKB9TVTUtupr_RY/_buildManifest.js",
-    "static/N6QS8FxKB9TVTUtupr_RY/_ssgManifest.js"
+    "static/TcVQMw3QYGH7dUhdtNVk7/_buildManifest.js",
+    "static/TcVQMw3QYGH7dUhdtNVk7/_ssgManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -223,7 +223,7 @@
       "static/chunks/76-7aa5bf09e3fdb727.js",
       "static/chunks/9410-d50287ee7b7d7064.js",
       "static/css/ecbb2fa9739ae05c.css",
-      "static/chunks/pages/CustomerListPage-1fb5e5f715257b94.js"
+      "static/chunks/pages/CustomerListPage-3ee9e9b00db0b505.js"
     ],
     "/DailyPricing": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",
@@ -519,7 +519,7 @@
       "static/chunks/8776-facae1e466d1196d.js",
       "static/chunks/9176-19c0976a8ff49543.js",
       "static/css/4ced0ec3d3657563.css",
-      "static/chunks/pages/VisitsList-412ffc1163413af0.js"
+      "static/chunks/pages/VisitsList-cad32b41cffa3fb0.js"
     ],
     "/VisitsTab": [
       "static/chunks/webpack-a17ba4ee29856cc2.js",

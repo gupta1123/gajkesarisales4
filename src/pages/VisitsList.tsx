@@ -48,10 +48,10 @@ const fetchVisits = async (
         url += `&purpose=${encodeURIComponent(purpose)}`;
     }
     if (storeName) {
-        url += `&storeName=${encodeURIComponent(storeName)}`;
+        url += `&storeName=${encodeURIComponent(storeName.toLowerCase())}`;
     }
     if (employeeName) {
-        url += `&employeeName=${encodeURIComponent(employeeName)}`;
+        url += `&employeeName=${encodeURIComponent(employeeName.toLowerCase())}`;
     }
 
     const headers: { Authorization?: string } = {};
@@ -91,7 +91,7 @@ const fetchVisitsForTeam = async (
         url += `&purpose=${encodeURIComponent(purpose)}`;
     }
     if (storeName) {
-        url += `&storeName=${encodeURIComponent(storeName)}`;
+        url += `&storeName=${encodeURIComponent(storeName.toLowerCase())}`;
     }
 
     const headers: { Authorization?: string } = {};
@@ -382,8 +382,8 @@ const VisitsList: React.FC = () => {
             setEmployeeName('');
             setPurpose('');
         } else {
-            setStoreName(filters.storeName);
-            setEmployeeName(filters.employeeName);
+            setStoreName(filters.storeName.toLowerCase());
+            setEmployeeName(filters.employeeName.toLowerCase());
             setPurpose(filters.purpose);
         }
         setCurrentPage(1);
