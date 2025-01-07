@@ -106,6 +106,11 @@ type Visit = {
   purpose: string;
   checkinDate: string;
   checkinTime: string;
+  storePrimaryContact: number;
+  city: string;
+  district: string;
+  subDistrict: string;
+  state: string;
 };
 
 type BrandProCons = {
@@ -203,8 +208,11 @@ const VisitDetailPage: React.FC = () => {
     updatedTime: '',
   });
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-
+  const [storeDetails, setStoreDetails] = useState<{
+    contactNumber: string;
+    city: string;
+    address: string;
+  } | null>(null);
 
   type BrandProCons = {
     id: number;
@@ -302,12 +310,44 @@ const VisitDetailPage: React.FC = () => {
     }
   };
 
- 
-
-
   const handlePriorityChange = (value: string) => {
     setPriorityFilter(value);
   };
+
+  const fetchVisits = useCallback(
+    async (storeId: number) => {
+      try {
+        const response = await fetch(
+          `https://api.gajkesaristeels.in/visit/getByStore?id=${storeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data: Visit[] = await response.json();
+        const sortedVisits = data.sort(
+          (a, b) => new Date(b.checkinDate).getTime() - new Date(a.checkinDate).getTime()
+        );
+        setVisits(sortedVisits);
+        
+        if (data.length > 0) {
+          const firstVisit = data[0];
+          setStoreDetails({
+            contactNumber: firstVisit.storePrimaryContact?.toString() || 'Not available',
+            city: firstVisit.city || 'Not available',
+            address: `${firstVisit.subDistrict || ''}, ${firstVisit.district || ''}, ${firstVisit.state || ''}`.replace(/^[, ]+|[, ]+$/g, '') || 'Not available',
+          });
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        setError('Failed to fetch visits.');
+        setIsLoading(false);
+      }
+    },
+    [token]
+  );
 
   const fetchVisitDetail = useCallback(async (visitId: string) => {
     try {
@@ -327,14 +367,15 @@ const VisitDetailPage: React.FC = () => {
       fetchMonthlySales(visitId);
       fetchTasks(visitId, 'requirement', setRequirements);
       fetchTasks(visitId, 'complaint', setComplaints);
-      fetchVisits(data.storeId);
+      if (data.storeId) {
+        fetchVisits(data.storeId);
+      }
       fetchCheckinImages(visitId, data.attachmentResponse);
       fetchNotes(visitId);
     } catch (error) {
       console.error('Error fetching visit detail:', error);
     }
-  }, [token]);
-
+  }, [token, fetchVisits]);
 
   const fetchCheckinImages = async (visitId: string, attachments: any[]) => {
     try {
@@ -368,32 +409,6 @@ const VisitDetailPage: React.FC = () => {
     }
   };
 
-  const fetchVisits = useCallback(
-    async (storeId: number) => {
-      try {
-        const response = await fetch(
-          `https://api.gajkesaristeels.in/visit/getByStore?id=${storeId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const data: Visit[] = await response.json();
-        const sortedVisits = data.sort(
-          (a, b) => new Date(b.checkinDate).getTime() - new Date(a.checkinDate).getTime()
-        );
-        setVisits(sortedVisits);
-        setIsLoading(false);
-      } catch (error) {
-        setError('Failed to fetch visits.');
-        setIsLoading(false);
-      }
-    },
-    [token]
-  );
-
- 
   const filterTasks = useCallback(() => {
     const filterByPriority = (tasks: Task[]) => {
       if (priorityFilter === 'all') return tasks;
@@ -403,7 +418,6 @@ const VisitDetailPage: React.FC = () => {
     setFilteredRequirements(filterByPriority(requirements));
     setFilteredComplaints(filterByPriority(complaints));
   }, [priorityFilter, requirements, complaints]);
-
 
   const calculateVisitDuration = (checkIn: string, checkOut: string) => {
     const checkInDate = new Date(`1970-01-01T${checkIn}Z`);
@@ -674,8 +688,6 @@ const VisitDetailPage: React.FC = () => {
     router.back();
   };
 
-
-
   const createTask = async (taskType: string) => {
     try {
       const taskToCreate = {
@@ -808,10 +820,9 @@ const VisitDetailPage: React.FC = () => {
     }
   }, [id, token]); 
 
-
   useEffect(() => {
     filterTasks();
-  }, [requirements, complaints, priorityFilter, filterTasks]); // Add filterTasks here
+  }, [requirements, complaints, priorityFilter, filterTasks]);
   const handleDeleteTask = async (taskId: number) => {
     try {
       await axios.delete(
@@ -993,71 +1004,167 @@ const VisitDetailPage: React.FC = () => {
             className={`info-content ${activeInfoTab === 'visit-info' ? 'active' : ''}`}
             id="visit-info"
           >
-            <div className="info-item">
-              <div className="info-label">
-                <i className="fas fa-tasks"></i> Purpose
+            <div className="store-info-card">
+              <div className="store-header">
+                <div className="store-avatar">
+                  <i className="fas fa-clipboard-list text-2xl text-purple-600"></i>
+                </div>
+                <div className="store-title">
+                  <h3 className="text-lg font-semibold">Visit Details</h3>
+                  <span className="text-sm text-gray-500">
+                    {visitDetail?.visit_date ? format(new Date(visitDetail.visit_date), "dd MMM yyyy") : 'Date not available'}
+                  </span>
+                </div>
               </div>
-              <div>{visitDetail?.purpose}</div>
-            </div>
-            <div className="info-item">
-              <div className="info-label">
-                <i className="fas fa-map-marker-alt"></i> Location
-              </div>
-              <div>
-                {visitDetail?.checkinLatitude && visitDetail?.checkinLongitude ? (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${visitDetail.checkinLatitude},${visitDetail.checkinLongitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="location-link"
-                  >
-                    Location
-                  </a>
-                ) : (
-                  <span>Location not available</span>
-                )}
-              </div>
-            </div>
-            <div className="info-item">
-              <div className="info-label">
-                <i className="fas fa-sign-in-alt"></i> Check-in
-              </div>
-              <div>
-                {visitDetail?.checkinDate && visitDetail?.checkinTime ? (
-                  <>
-                    <div>{format(new Date(visitDetail.checkinDate), "dd MMM yyyy")}</div>
-                    <div>{format(parseISO(`1970-01-01T${visitDetail.checkinTime}`), 'h:mm a')}</div>
-                  </>
-                ) : (
-                  'Check-in not available'
-                )}
-              </div>
-            </div>
-            <div className="info-item">
-              <div className="info-label">
-                <i className="fas fa-sign-out-alt"></i> Check-out
-              </div>
-              <div>
-                {visitDetail?.checkoutDate && visitDetail?.checkoutTime ? (
-                  <>
-                    <div>{format(new Date(visitDetail.checkoutDate), "dd MMM yyyy")}</div>
-                    <div>{format(parseISO(`1970-01-01T${visitDetail.checkoutTime}`), 'h:mm a')}</div>
-                  </>
-                ) : (
-                  'Check-out not available'
-                )}
+
+              <div className="store-details">
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-purple-100">
+                      <i className="fas fa-tasks text-purple-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Purpose</label>
+                    <div className="detail-value">{visitDetail?.purpose}</div>
+                  </div>
+                </div>
+
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-yellow-100">
+                      <i className="fas fa-map-marker-alt text-yellow-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Location</label>
+                    <div className="detail-value">
+                      {visitDetail?.checkinLatitude && visitDetail?.checkinLongitude ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${visitDetail.checkinLatitude},${visitDetail.checkinLongitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          <i className="fas fa-external-link-alt mr-1"></i>
+                          View Location
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">Location not available</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-green-100">
+                      <i className="fas fa-sign-in-alt text-green-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Check-in</label>
+                    <div className="detail-value">
+                      {visitDetail?.checkinDate && visitDetail?.checkinTime ? (
+                        <div className="flex flex-col">
+                          <span>{format(new Date(visitDetail.checkinDate), "dd MMM yyyy")}</span>
+                          <span className="text-sm text-gray-500">
+                            {format(parseISO(`1970-01-01T${visitDetail.checkinTime}`), 'h:mm a')}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Check-in not available</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-red-100">
+                      <i className="fas fa-sign-out-alt text-red-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Check-out</label>
+                    <div className="detail-value">
+                      {visitDetail?.checkoutDate && visitDetail?.checkoutTime ? (
+                        <div className="flex flex-col">
+                          <span>{format(new Date(visitDetail.checkoutDate), "dd MMM yyyy")}</span>
+                          <span className="text-sm text-gray-500">
+                            {format(parseISO(`1970-01-01T${visitDetail.checkoutTime}`), 'h:mm a')}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Check-out not available</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
           <div
             className={`info-content ${activeInfoTab === 'store-info' ? 'active' : ''}`}
             id="store-info"
           >
-            <div className="info-item">
-              <div className="info-label">
-                <i className="fas fa-store"></i> Store Name
+            <div className="store-info-card">
+              <div className="store-header">
+                <div className="store-avatar">
+                  <i className="fas fa-store text-2xl text-blue-600"></i>
+                </div>
+                <div className="store-title">
+                  <h3 className="text-lg font-semibold">{visitDetail?.storeName}</h3>
+                  <span className="text-sm text-gray-500">{storeDetails?.city}</span>
+                </div>
               </div>
-              <div>{visitDetail?.storeName}</div>
+
+              <div className="store-details">
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-blue-100">
+                      <i className="fas fa-phone text-blue-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Contact</label>
+                    <a 
+                      href={`tel:${storeDetails?.contactNumber}`}
+                      className="detail-value text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      {storeDetails?.contactNumber}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="detail-item">
+                  <div className="detail-icon">
+                    <div className="icon-circle bg-green-100">
+                      <i className="fas fa-map-marker-alt text-green-600"></i>
+                    </div>
+                  </div>
+                  <div className="detail-content">
+                    <label className="detail-label">Location</label>
+                    <div className="detail-value">
+                      <p className="text-sm">{storeDetails?.address}</p>
+                      {storeDetails?.city && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            `${visitDetail?.storeName} ${storeDetails?.address}`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 transition-colors mt-1 inline-block"
+                        >
+                          <i className="fas fa-external-link-alt mr-1"></i>
+                          View on Maps
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </aside>

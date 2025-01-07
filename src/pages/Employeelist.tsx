@@ -115,6 +115,8 @@ const EmployeeList: React.FC = () => {
   const [archivedEmployees, setArchivedEmployees] = useState<User[]>([]);
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
+  const [isEditUsernameModalOpen, setIsEditUsernameModalOpen] = useState(false);
+  const [editingUsername, setEditingUsername] = useState<{ id: number; username: string } | null>(null);
 
   const token = useSelector((state: RootState) => state.auth.token);
   const role = useSelector((state: RootState) => state.auth.role);
@@ -556,6 +558,73 @@ const EmployeeList: React.FC = () => {
     );
   }, [archivedEmployees, archiveSearchQuery]);
 
+  const handleEditUsername = (userId: number, currentUsername: string) => {
+    setEditingUsername({ id: userId, username: currentUsername });
+    setIsEditUsernameModalOpen(true);
+  };
+
+  const handleSaveUsername = async () => {
+    if (!editingUsername?.username.trim()) {
+      toast({
+        title: "Error",
+        description: "Username cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingUsername) {
+      try {
+        setIsLoading(true);
+        
+        // Make the edit username call
+        await axios.put(
+          `https://api.gajkesaristeels.in/employee/editUsername?id=${editingUsername.id}&username=${editingUsername.username}`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        // Immediately get updated data
+        const getAllResponse = await axios.get('https://api.gajkesaristeels.in/employee/getAll', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (getAllResponse.data) {
+          setUsers(getAllResponse.data.map((user: User) => ({ ...user, userName: user.userDto?.username || "" })));
+          setAssignedCities(getAllResponse.data.filter((user: User) => user.city).map((user: User) => user.city));
+          
+          // Close dialog and show success message
+          setIsEditUsernameModalOpen(false);
+          setEditingUsername(null);
+          
+          toast({
+            title: "Success",
+            description: "Username updated successfully!",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to update username",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const closeUsernameDialog = () => {
+    setIsEditUsernameModalOpen(false);
+    setEditingUsername(null);
+  };
+
   return (
     <div className="container-employee mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mobile-display flex items-center justify-between mb-8">
@@ -779,6 +848,9 @@ const EmployeeList: React.FC = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleEditUser(user)}>
                               Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditUsername(user.id, user.userName)}>
+                              Edit Username
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewUser(user.id)}>
                               View
@@ -1310,6 +1382,56 @@ const EmployeeList: React.FC = () => {
               </Table>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditUsernameModalOpen} onOpenChange={closeUsernameDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Username</DialogTitle>
+            <DialogDescription>
+              Enter a new username for the employee. Username must not be empty.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newUsername">New Username</Label>
+              <Input
+                id="newUsername"
+                value={editingUsername?.username || ''}
+                onChange={(e) => setEditingUsername(prev => prev ? { ...prev, username: e.target.value } : null)}
+                placeholder="Enter new username"
+                disabled={isLoading}
+                className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={closeUsernameDialog}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveUsername}
+              disabled={isLoading || !editingUsername?.username.trim()}
+              className="relative"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </span>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
