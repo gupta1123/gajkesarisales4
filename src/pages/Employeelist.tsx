@@ -468,11 +468,50 @@ const EmployeeList: React.FC = () => {
       );
 
       if (response.status === 200) {
-        setIsModalOpen(false);
-        toast({
-          title: "Success",
-          description: "Employee added successfully!",
+        // Get all employees to find the newly created employee
+        const getAllResponse = await axios.get('https://api.gajkesaristeels.in/employee/getAll', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
+
+        if (getAllResponse.data) {
+          // Find the newly created employee by matching the username
+          const createdEmployee = getAllResponse.data.find(
+            (emp: User) => emp.userDto?.username === newEmployee.userName
+          );
+
+          if (createdEmployee) {
+            // Create attendance log for the new employee
+            try {
+              const attendanceResponse = await axios.post(
+                `https://api.gajkesaristeels.in/attendance-log/createAttendanceLog?employeeId=${createdEmployee.id}`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              if (attendanceResponse.status === 200) {
+                toast({
+                  title: "Success",
+                  description: "Employee added successfully and attendance log created!",
+                });
+              }
+            } catch (attendanceError) {
+              console.error("Error creating attendance log:", attendanceError);
+              toast({
+                title: "Partial Success",
+                description: "Employee added successfully but failed to create attendance log.",
+                variant: "destructive",
+              });
+            }
+          }
+        }
+
+        setIsModalOpen(false);
         fetchEmployees();
       } else {
         throw new Error("Error adding employee!");
@@ -1221,17 +1260,6 @@ const EmployeeList: React.FC = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="userName">User Name</Label>
-                  <Input
-                    id="userName"
-                    name="userName"
-                    value={editingEmployee.userName}
-                    onChange={handleEditInputChange}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
                   <Label htmlFor="primaryContact">Primary Contact</Label>
                   <Input
                     id="primaryContact"
@@ -1240,6 +1268,8 @@ const EmployeeList: React.FC = () => {
                     onChange={handleEditInputChange}
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="role">Role</Label>
                   <Select

@@ -191,11 +191,24 @@ const Dashboard: React.FC = () => {
   const fetchEmployeeDetails = useCallback(async (employeeName: string, start: string, end: string) => {
     setIsLoading(true);
     try {
-      const employeeId = visits.find(v => `${v.employeeFirstName} ${v.employeeLastName}`.toLowerCase() === employeeName.toLowerCase())?.employeeId;
+      // First try to find employee in employeeInfo
+      const employee = employeeInfo.find(emp => 
+        `${emp.firstName} ${emp.lastName}`.toLowerCase() === employeeName.toLowerCase()
+      );
+
+      // If not found in employeeInfo, try to find in visits
+      const visitEmployee = visits.find(v => 
+        `${v.employeeFirstName} ${v.employeeLastName}`.toLowerCase() === employeeName.toLowerCase()
+      );
+
+      const employeeId = employee?.id || visitEmployee?.employeeId;
 
       if (!employeeId) {
+        console.error("Employee not found:", employeeName);
         throw new Error("Employee not found");
       }
+
+      console.log("Fetching details for employee:", employeeName, "with ID:", employeeId);
 
       const response = await fetch(`${API_BASE_URL}/visit/getByDateRangeAndEmployeeStats?id=${employeeId}&start=${start}&end=${end}`, {
         headers: {
@@ -215,7 +228,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [token, visits]);
+  }, [token, visits, employeeInfo]);
 
   useEffect(() => {
     if (view === 'employeeDetails' && employee && queryStartDate && queryEndDate) {
