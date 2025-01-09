@@ -1309,24 +1309,46 @@
 }
 
 .popup-close {
-  padding: 4px;
   background: transparent;
   border: none;
   cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
   color: #64748B;
   line-height: 0;
-  border-radius: 4px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .popup-close:hover {
-  background: #EEF2F6;
+  background: #F1F5F9;
   color: #1E293B;
 }
 
 .popup-close:focus {
   outline: 2px solid #3B82F6;
   outline-offset: 2px;
+}
+
+/* Ensure popup stays visible when hovering over it */
+.maplibregl-popup {
+  pointer-events: auto !important;
+}
+
+.maplibregl-popup-content {
+  pointer-events: auto !important;
+}
+
+/* Add transition for smooth appearance/disappearance */
+.maplibregl-popup {
+  transition: opacity 0.2s ease;
+}
+
+.maplibregl-popup.maplibregl-popup-hide {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Ensure the close button doesn't get hidden */
@@ -1353,4 +1375,240 @@
 .popup-badge.visit {
   background-color: #DBEAFE;
   color: #2563EB;
+}
+
+.info-section {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #F8FAFC;
+  border-radius: 8px;
+}
+
+.info-icon {
+  color: #64748B;
+  margin-right: 12px;
+  margin-top: 2px;
+}
+
+.info-content {
+  flex: 1;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #64748B;
+  margin-bottom: 2px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #1E293B;
+  font-weight: 500;
+}
+
+.view-details-btn {
+  background: #3B82F6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 8px;
+}
+
+.view-details-btn:hover {
+  background: #2563EB;
+}
+
+.popup-card {
+  min-width: 280px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.popup-header {
+  padding: 12px 16px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.popup-title-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.popup-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.popup-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.popup-badge.current {
+  background: #DCFCE7;
+  color: #22C55E;
+}
+
+.popup-body {
+  padding: 16px;
+}
+
+.popup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Override maplibre popup styles */
+.maplibregl-popup {
+  max-width: 320px !important;
+}
+
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 8px !important;
+}
+
+.maplibregl-popup-close-button {
+  padding: 4px 8px !important;
+  color: #64748B !important;
+  font-size: 16px !important;
+  right: 4px !important;
+  top: 4px !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: #1E293B !important;
+  background: none !important;
+}
+
+/* Ensure popup stays visible when hovering */
+.maplibregl-popup {
+  pointer-events: auto !important;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.maplibregl-popup-content {
+  pointer-events: auto !important;
+}
+
+/* Style for close button */
+.popup-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  transition: all 0.2s ease;
+}
+
+.popup-close:hover {
+  background: #F1F5F9;
+  color: #1E293B;
+}
+
+.popup-close:focus {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* Hide popup when marker is not hovered */
+.maplibregl-marker:not(:hover) + .maplibregl-popup {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Keep popup visible when hovering over it */
+.maplibregl-popup:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.popup-close {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  line-height: 0;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.popup-close:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.popup-close:focus {
+  outline: 2px solid #e5e7eb;
+  outline-offset: 2px;
+}
+
+.popup-close {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  line-height: 0;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-close::before {
+  content: "×";
+  display: block;
+  line-height: 1;
+}
+
+.popup-close:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.popup-close:focus {
+  outline: 2px solid #e5e7eb;
+  outline-offset: 2px;
+}
+
+/* Hide the default maplibre close button */
+.maplibregl-popup-close-button {
+  display: none !important;
 }

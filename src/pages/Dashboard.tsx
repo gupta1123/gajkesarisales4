@@ -114,6 +114,7 @@ const Dashboard: React.FC = () => {
   const [employeeLocations, setEmployeeLocations] = useState<EmployeeLocation[]>([]);
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [showMapLegend, setShowMapLegend] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const token = useSelector((state: RootState) => state.auth.token);
@@ -257,6 +258,7 @@ const Dashboard: React.FC = () => {
 
   const handleEmployeeLocationClick = useCallback((location: EmployeeLocation) => {
     if (map.current) {
+      setShowMapLegend(true);
       // Clear existing markers
       map.current.getCanvasContainer().querySelectorAll('.maplibregl-marker').forEach((marker) => {
         marker.remove();
@@ -299,152 +301,164 @@ const Dashboard: React.FC = () => {
           });
         }
 
-        // Add visit location pins
+        // Add visit location pins with hover popups
         visits.forEach((visit, index) => {
           if (visit.checkinLatitude && visit.checkinLongitude) {
             const visitMarker = new Marker({ color: '#3B82F6' })
               .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
               .addTo(map.current!);
             
+            const visitPopup = new Popup({
+              closeButton: false,
+              closeOnClick: false,
+              className: 'map-popup'
+            });
+
             visitMarker.getElement().addEventListener('mouseenter', () => {
-              new Popup({
-                offset: 25,
-                closeButton: false,
-                className: 'map-popup'
-              })
-              .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
-              .setHTML(`
-                <div class="popup-card">
-                  <div class="popup-header">
-                    <div class="popup-title-wrapper">
-                      <div class="popup-title">${employeeName}</div>
-                      <div class="popup-badge visit">Visit #${index + 1}</div>
-                    </div>
-                    <button class="popup-close" aria-label="Close popup">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6L6 18M6 6l12 12"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="popup-body">
-                    <div class="popup-info">
-                      <div class="store-name">${visit.storeName}</div>
-                      <div class="time-info">
-                        <div class="check-date">Check-in Date: ${format(parseISO(visit.visit_date), 'MMM dd, yyyy')}</div>
-                        <div>Check-in Time: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
-                        ${visit.checkoutTime ? 
-                          `<div>Check-out: ${format(parseISO(`${visit.visit_date}T${visit.checkoutTime}`), 'h:mm a')}</div>` 
-                          : '<div>Not checked out yet</div>'
-                        }
+              visitPopup
+                .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
+                .setHTML(`
+                  <div class="popup-card">
+                    <div class="popup-header">
+                      <div class="popup-title-wrapper">
+                        <div class="popup-title">${employeeName}</div>
+                        <div class="popup-badge visit">Visit #${index + 1}</div>
                       </div>
-                      ${visit.purpose ? `<div class="visit-purpose">Purpose: ${visit.purpose}</div>` : ''}
-                      <div class="visit-location">${visit.city}, ${visit.state}</div>
+                      <button class="popup-close" aria-label="Close popup">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 6L6 18"></path>
+                          <path d="M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="popup-body">
+                      <div class="popup-info">
+                        <div class="store-name">${visit.storeName}</div>
+                        <div class="time-info">
+                          <div class="check-date">Check-in Date: ${format(parseISO(visit.visit_date), 'MMM dd, yyyy')}</div>
+                          <div>Check-in Time: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
+                          ${visit.checkoutTime ? 
+                            `<div>Check-out: ${format(parseISO(`${visit.visit_date}T${visit.checkoutTime}`), 'h:mm a')}</div>` 
+                            : '<div>Not checked out yet</div>'
+                          }
+                        </div>
+                        ${visit.purpose ? `<div class="visit-purpose">Purpose: ${visit.purpose}</div>` : ''}
+                        <div class="visit-location">${visit.city}, ${visit.state}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              `)
-              .addTo(map.current!);
+                `)
+                .addTo(map.current!);
 
               // Add click handler for close button
-              const popup = document.querySelector('.maplibregl-popup:last-child');
-              if (popup) {
-                const closeButton = popup.querySelector('.popup-close');
-                closeButton?.addEventListener('click', () => {
-                  popup.remove();
-                });
+              const closeButton = visitPopup.getElement().querySelector('.popup-close');
+              if (closeButton) {
+                closeButton.addEventListener('click', () => visitPopup.remove());
               }
+            });
+
+            visitMarker.getElement().addEventListener('mouseleave', () => {
+              visitPopup.remove();
             });
           }
         });
 
-        // Add current location pin
+        // Add current location pin with hover popup
         const currentMarker = new Marker({ color: '#22C55E' })
           .setLngLat([location.longitude, location.latitude])
           .addTo(map.current!);
         
-        currentMarker.getElement().addEventListener('mouseenter', () => {
-          new Popup({
-            offset: 25,
-            closeButton: false,
-            className: 'map-popup'
-          })
-          .setLngLat([location.longitude, location.latitude])
-          .setHTML(`
-            <div class="popup-card">
-              <div class="popup-header">
-                <div class="popup-title-wrapper">
-                  <div class="popup-title">${employeeName}</div>
-                  <div class="popup-badge current">Current Location</div>
-                </div>
-                <button class="popup-close" aria-label="Close popup">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="popup-body">
-                <div class="popup-info">
-                  Last seen at ${format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a')}
-                </div>
-              </div>
-            </div>
-          `)
-          .addTo(map.current!);
-
-          // Add click handler for close button
-          const popup = document.querySelector('.maplibregl-popup:last-child');
-          if (popup) {
-            const closeButton = popup.querySelector('.popup-close');
-            closeButton?.addEventListener('click', () => {
-              popup.remove();
-            });
-          }
+        const currentPopup = new Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'map-popup'
         });
 
-        // Add home location pin
-        if (employeeData.houseLatitude && employeeData.houseLongitude) {
-          const homeMarker = new Marker({ color: '#EF4444' })
-            .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
-            .addTo(map.current!);
-          
-          homeMarker.getElement().addEventListener('mouseenter', () => {
-            new Popup({
-              offset: 25,
-              closeButton: false,
-              className: 'map-popup'
-            })
-            .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
+        currentMarker.getElement().addEventListener('mouseenter', () => {
+          currentPopup
+            .setLngLat([location.longitude, location.latitude])
             .setHTML(`
               <div class="popup-card">
                 <div class="popup-header">
                   <div class="popup-title-wrapper">
                     <div class="popup-title">${employeeName}</div>
-                    <div class="popup-badge home">Home Location</div>
+                    <div class="popup-badge current">Current Location</div>
                   </div>
                   <button class="popup-close" aria-label="Close popup">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M18 6L6 18M6 6l12 12"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 6L6 18"></path>
+                      <path d="M6 6l12 12"></path>
                     </svg>
                   </button>
                 </div>
                 <div class="popup-body">
                   <div class="popup-info">
-                    <div class="address">${employeeData.addressLine1 || 'Address not available'}</div>
-                    <div class="location">${employeeData.city}, ${employeeData.state}</div>
+                    Last seen at ${format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a')}
                   </div>
                 </div>
               </div>
             `)
             .addTo(map.current!);
 
+          // Add click handler for close button
+          const currentCloseButton = currentPopup.getElement().querySelector('.popup-close');
+          if (currentCloseButton) {
+            currentCloseButton.addEventListener('click', () => currentPopup.remove());
+          }
+        });
+
+        currentMarker.getElement().addEventListener('mouseleave', () => {
+          currentPopup.remove();
+        });
+
+        // Add home location pin with hover popup
+        if (employeeData.houseLatitude && employeeData.houseLongitude) {
+          const homeMarker = new Marker({ color: '#EF4444' })
+            .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
+            .addTo(map.current!);
+          
+          const homePopup = new Popup({
+            closeButton: false,
+            closeOnClick: false,
+            className: 'map-popup'
+          });
+
+          homeMarker.getElement().addEventListener('mouseenter', () => {
+            homePopup
+              .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
+              .setHTML(`
+                <div class="popup-card">
+                  <div class="popup-header">
+                    <div class="popup-title-wrapper">
+                      <div class="popup-title">${employeeName}</div>
+                      <div class="popup-badge home">Home Location</div>
+                    </div>
+                    <button class="popup-close" aria-label="Close popup">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18"></path>
+                        <path d="M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="popup-body">
+                    <div class="popup-info">
+                      <div class="address">${employeeData.addressLine1 || 'Address not available'}</div>
+                      <div class="location">${employeeData.city}, ${employeeData.state}</div>
+                    </div>
+                  </div>
+                </div>
+              `)
+              .addTo(map.current!);
+
             // Add click handler for close button
-            const popup = document.querySelector('.maplibregl-popup:last-child');
-            if (popup) {
-              const closeButton = popup.querySelector('.popup-close');
-              closeButton?.addEventListener('click', () => {
-                popup.remove();
-              });
+            const homeCloseButton = homePopup.getElement().querySelector('.popup-close');
+            if (homeCloseButton) {
+              homeCloseButton.addEventListener('click', () => homePopup.remove());
             }
+          });
+
+          homeMarker.getElement().addEventListener('mouseleave', () => {
+            homePopup.remove();
           });
         }
       });
@@ -555,6 +569,7 @@ const Dashboard: React.FC = () => {
     setSelectedEmployee(null);
     setIsMainDashboard(true);
     setMapError(null);
+    setShowMapLegend(false);
     fetchAllEmployeeLocations();
     router.push('/Dashboard', undefined, { shallow: true });
   }, [router]);
@@ -610,11 +625,68 @@ const Dashboard: React.FC = () => {
       map.current.addControl(new NavigationControl(), 'top-left');
 
       // Add markers for all locations
-      locations.forEach((location, index) => {
+      locations.forEach(async (location, index) => {
         const color = `hsl(${(index * 137.508) % 360}, 70%, 50%)`;
-        new Marker({ color: color })
+        const marker = new Marker({ color: color })
           .setLngLat([location.longitude, location.latitude])
           .addTo(map.current!);
+
+        // Create a popup but don't add it to the map yet
+        const popup = new Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'map-popup'
+        });
+
+        // Add hover events to marker
+        marker.getElement().addEventListener('mouseenter', async () => {
+          try {
+            const employeeResponse = await axios.get(`${API_BASE_URL}/employee/getById?id=${location.empId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const employeeData = employeeResponse.data;
+            const employeeName = `${employeeData.firstName} ${employeeData.lastName}`;
+            const lastUpdate = format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'MMM dd, yyyy');
+            const lastUpdateTime = format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a');
+
+            popup
+              .setLngLat([location.longitude, location.latitude])
+              .setHTML(`
+                <div class="popup-card">
+                  <div class="popup-header">
+                    <div class="popup-title-wrapper">
+                      <div class="popup-title">${employeeName}</div>
+                      <div class="popup-badge current">Live Location</div>
+                    </div>
+                  </div>
+                  <div class="popup-body">
+                    <div class="popup-info">
+                      <div class="info-section">
+                        <div class="info-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                            <circle cx="12" cy="9" r="2.5"/>
+                          </svg>
+                        </div>
+                        <div class="info-content">
+                          <div class="info-label">Location Updated</div>
+                          <div class="info-value">${lastUpdate} at ${lastUpdateTime}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `)
+              .addTo(map.current!);
+          } catch (error) {
+            console.error('Error fetching employee details:', error);
+          }
+        });
+
+        // Remove popup when mouse leaves the marker
+        marker.getElement().addEventListener('mouseleave', () => {
+          popup.remove();
+        });
       });
 
       // Fit bounds to show all markers
@@ -633,11 +705,12 @@ const Dashboard: React.FC = () => {
       console.error('Error initializing map:', error);
       setMapError("Failed to initialize map");
     }
-  }, [accessToken]);
+  }, [accessToken, token]);
 
   const fetchAllEmployeeLocations = useCallback(async () => {
     setIsMapLoading(true);
     setMapError(null);
+    setShowMapLegend(false);
 
     try {
       // Clear existing map instance
@@ -880,6 +953,7 @@ const Dashboard: React.FC = () => {
       setSelectedEmployee(null);
       setIsMainDashboard(true);
       setMapError(null);
+      setShowMapLegend(false);
 
       // Fetch fresh data
       await Promise.all([
@@ -983,23 +1057,25 @@ const Dashboard: React.FC = () => {
                               Reset Map View
                             </Button>
                           </div>
-                          <div className="absolute bottom-6 left-6 bg-white p-3 rounded-lg shadow-md">
-                            <div className="text-sm font-semibold mb-2">Map Legend</div>
-                            <div className="space-y-2">
-                              <div className="flex items-center">
-                                <div className="w-4 h-4 rounded-full bg-[#22C55E] mr-2"></div>
-                                <span>Current Location</span>
-                              </div>
-                              <div className="flex items-center">
-                                <div className="w-4 h-4 rounded-full bg-[#EF4444] mr-2"></div>
-                                <span>Home Location</span>
-                              </div>
-                              <div className="flex items-center">
-                                <div className="w-4 h-4 rounded-full bg-[#3B82F6] mr-2"></div>
-                                <span>Visits</span>
+                          {showMapLegend && (
+                            <div className="absolute bottom-6 left-6 bg-white p-3 rounded-lg shadow-md">
+                              <div className="text-sm font-semibold mb-2">Map Legend</div>
+                              <div className="space-y-2">
+                                <div className="flex items-center">
+                                  <div className="w-4 h-4 rounded-full bg-[#22C55E] mr-2"></div>
+                                  <span>Current Location</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <div className="w-4 h-4 rounded-full bg-[#EF4444] mr-2"></div>
+                                  <span>Home Location</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <div className="w-4 h-4 rounded-full bg-[#3B82F6] mr-2"></div>
+                                  <span>Visits</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                         <EmployeeLocationList employeeLocations={employeeLocations} onEmployeeClick={handleEmployeeLocationClick} />
                       </>
