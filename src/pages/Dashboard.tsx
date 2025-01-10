@@ -44,7 +44,7 @@ type Visit = {
   storeName: string;
   visit_date: string;
   checkinTime: string;
-  checkoutTime: string;
+  checkoutTime: string | null;
   statsDto: {
     completedVisitCount: number;
     fullDays: number;
@@ -301,7 +301,7 @@ const Dashboard: React.FC = () => {
           });
         }
 
-        // Add visit location pins with hover popups
+        // Add visit location pins with click popups
         visits.forEach((visit, index) => {
           if (visit.checkinLatitude && visit.checkinLongitude) {
             const visitMarker = new Marker({ color: '#3B82F6' })
@@ -311,59 +311,53 @@ const Dashboard: React.FC = () => {
             const visitPopup = new Popup({
               closeButton: false,
               closeOnClick: false,
-              className: 'map-popup'
+              className: 'map-popup',
+              offset: [0, -10]
             });
 
-            visitMarker.getElement().addEventListener('mouseenter', () => {
+            visitMarker.getElement().addEventListener('click', () => {
+              // Remove any existing popups first
+              map.current!.getCanvasContainer().querySelectorAll('.maplibregl-popup').forEach((popup) => {
+                popup.remove();
+              });
+
               visitPopup
                 .setLngLat([visit.checkinLongitude!, visit.checkinLatitude!])
                 .setHTML(`
                   <div class="popup-card">
                     <div class="popup-header">
                       <div class="popup-title-wrapper">
-                        <div class="popup-title">${employeeName}</div>
-                        <div class="popup-badge visit">Visit #${index + 1}</div>
+                        <div class="popup-title">
+                          ${employeeName}
+                          <div class="popup-badge visit">Visit #${index + 1}</div>
+                        </div>
                       </div>
-                      <button class="popup-close" aria-label="Close popup">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M18 6L6 18"></path>
-                          <path d="M6 6l12 12"></path>
-                        </svg>
-                      </button>
                     </div>
                     <div class="popup-body">
                       <div class="popup-info">
-                        <div class="store-name">${visit.storeName}</div>
+                        <div class="info-group">
+                          <div class="store-name">${visit.storeName}</div>
+                        </div>
                         <div class="time-info">
-                          <div class="check-date">Check-in Date: ${format(parseISO(visit.visit_date), 'MMM dd, yyyy')}</div>
+                          <div>Check-in Date: ${format(parseISO(visit.visit_date), 'MMM dd, yyyy')}</div>
                           <div>Check-in Time: ${format(parseISO(`${visit.visit_date}T${visit.checkinTime}`), 'h:mm a')}</div>
                           ${visit.checkoutTime ? 
                             `<div>Check-out: ${format(parseISO(`${visit.visit_date}T${visit.checkoutTime}`), 'h:mm a')}</div>` 
                             : '<div>Not checked out yet</div>'
                           }
                         </div>
-                        ${visit.purpose ? `<div class="visit-purpose">Purpose: ${visit.purpose}</div>` : ''}
+                        ${visit.purpose ? `<div class="visit-purpose">${visit.purpose}</div>` : ''}
                         <div class="visit-location">${visit.city}, ${visit.state}</div>
                       </div>
                     </div>
                   </div>
                 `)
                 .addTo(map.current!);
-
-              // Add click handler for close button
-              const closeButton = visitPopup.getElement().querySelector('.popup-close');
-              if (closeButton) {
-                closeButton.addEventListener('click', () => visitPopup.remove());
-              }
-            });
-
-            visitMarker.getElement().addEventListener('mouseleave', () => {
-              visitPopup.remove();
             });
           }
         });
 
-        // Add current location pin with hover popup
+        // Add current location pin with click popup
         const currentMarker = new Marker({ color: '#22C55E' })
           .setLngLat([location.longitude, location.latitude])
           .addTo(map.current!);
@@ -371,47 +365,41 @@ const Dashboard: React.FC = () => {
         const currentPopup = new Popup({
           closeButton: false,
           closeOnClick: false,
-          className: 'map-popup'
+          className: 'map-popup',
+          offset: [0, -10]
         });
 
-        currentMarker.getElement().addEventListener('mouseenter', () => {
+        currentMarker.getElement().addEventListener('click', () => {
+          // Remove any existing popups first
+          map.current!.getCanvasContainer().querySelectorAll('.maplibregl-popup').forEach((popup) => {
+            popup.remove();
+          });
+
           currentPopup
             .setLngLat([location.longitude, location.latitude])
             .setHTML(`
               <div class="popup-card">
                 <div class="popup-header">
                   <div class="popup-title-wrapper">
-                    <div class="popup-title">${employeeName}</div>
-                    <div class="popup-badge current">Current Location</div>
+                    <div class="popup-title">
+                      ${employeeName}
+                      <div class="popup-badge current">Current Location</div>
+                    </div>
                   </div>
-                  <button class="popup-close" aria-label="Close popup">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M18 6L6 18"></path>
-                      <path d="M6 6l12 12"></path>
-                    </svg>
-                  </button>
                 </div>
                 <div class="popup-body">
                   <div class="popup-info">
-                    Last seen at ${format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a')}
+                    <div class="time-info">
+                      <div>Last seen at ${format(parseISO(`${location.updatedAt}T${location.updatedTime}`), 'h:mm a')}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             `)
             .addTo(map.current!);
-
-          // Add click handler for close button
-          const currentCloseButton = currentPopup.getElement().querySelector('.popup-close');
-          if (currentCloseButton) {
-            currentCloseButton.addEventListener('click', () => currentPopup.remove());
-          }
         });
 
-        currentMarker.getElement().addEventListener('mouseleave', () => {
-          currentPopup.remove();
-        });
-
-        // Add home location pin with hover popup
+        // Add home location pin with click popup
         if (employeeData.houseLatitude && employeeData.houseLongitude) {
           const homeMarker = new Marker({ color: '#EF4444' })
             .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
@@ -420,25 +408,27 @@ const Dashboard: React.FC = () => {
           const homePopup = new Popup({
             closeButton: false,
             closeOnClick: false,
-            className: 'map-popup'
+            className: 'map-popup',
+            offset: [0, -10]
           });
 
-          homeMarker.getElement().addEventListener('mouseenter', () => {
+          homeMarker.getElement().addEventListener('click', () => {
+            // Remove any existing popups first
+            map.current!.getCanvasContainer().querySelectorAll('.maplibregl-popup').forEach((popup) => {
+              popup.remove();
+            });
+
             homePopup
               .setLngLat([employeeData.houseLongitude, employeeData.houseLatitude])
               .setHTML(`
                 <div class="popup-card">
                   <div class="popup-header">
                     <div class="popup-title-wrapper">
-                      <div class="popup-title">${employeeName}</div>
-                      <div class="popup-badge home">Home Location</div>
+                      <div class="popup-title">
+                        ${employeeName}
+                        <div class="popup-badge home">Home Location</div>
+                      </div>
                     </div>
-                    <button class="popup-close" aria-label="Close popup">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6L6 18"></path>
-                        <path d="M6 6l12 12"></path>
-                      </svg>
-                    </button>
                   </div>
                   <div class="popup-body">
                     <div class="popup-info">
@@ -449,16 +439,6 @@ const Dashboard: React.FC = () => {
                 </div>
               `)
               .addTo(map.current!);
-
-            // Add click handler for close button
-            const homeCloseButton = homePopup.getElement().querySelector('.popup-close');
-            if (homeCloseButton) {
-              homeCloseButton.addEventListener('click', () => homePopup.remove());
-            }
-          });
-
-          homeMarker.getElement().addEventListener('mouseleave', () => {
-            homePopup.remove();
           });
         }
       });
@@ -638,8 +618,8 @@ const Dashboard: React.FC = () => {
           className: 'map-popup'
         });
 
-        // Add hover events to marker
-        marker.getElement().addEventListener('mouseenter', async () => {
+        // Add click event to marker
+        marker.getElement().addEventListener('click', async () => {
           try {
             const employeeResponse = await axios.get(`${API_BASE_URL}/employee/getById?id=${location.empId}`, {
               headers: { Authorization: `Bearer ${token}` }
@@ -655,9 +635,12 @@ const Dashboard: React.FC = () => {
                 <div class="popup-card">
                   <div class="popup-header">
                     <div class="popup-title-wrapper">
-                      <div class="popup-title">${employeeName}</div>
-                      <div class="popup-badge current">Live Location</div>
+                      <div class="popup-title">
+                        ${employeeName}
+                        <div class="popup-badge current">Live Location</div>
+                      </div>
                     </div>
+                    <button class="popup-close" aria-label="Close popup">×</button>
                   </div>
                   <div class="popup-body">
                     <div class="popup-info">
@@ -678,15 +661,28 @@ const Dashboard: React.FC = () => {
                 </div>
               `)
               .addTo(map.current!);
+
+            // Add click handler for close button
+            const closeButton = popup.getElement().querySelector('.popup-close');
+            if (closeButton) {
+              closeButton.addEventListener('click', () => popup.remove());
+            }
+
+            // Add mouseout handler to the popup
+            popup.getElement().addEventListener('mouseout', (e) => {
+              if (!popup.getElement().contains(e.relatedTarget as Node)) {
+                popup.remove();
+              }
+            });
           } catch (error) {
             console.error('Error fetching employee details:', error);
           }
         });
 
-        // Remove popup when mouse leaves the marker
-        marker.getElement().addEventListener('mouseleave', () => {
-          popup.remove();
-        });
+        // Remove the mouseenter and mouseleave events
+        // marker.getElement().addEventListener('mouseleave', () => {
+        //   popup.remove();
+        // });
       });
 
       // Fit bounds to show all markers

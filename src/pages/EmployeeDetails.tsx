@@ -17,27 +17,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink } from "@
 import { ClipLoader } from 'react-spinners';
 import DateRangeDropdown from './DateRangeDropdown';
 import { useRouter } from 'next/router';
-
-type Visit = {
-    id: number;
-    employeeId: number;
-    employeeFirstName: string;
-    employeeLastName: string;
-    employeeState: string;
-    storeId: number;
-    employeeName: string;
-    purpose: string;
-    storeName: string;
-    visit_date: string;
-    checkinTime: string;
-    checkoutTime: string;
-    statsDto: {
-        completedVisitCount: number;
-        fullDays: number;
-        halfDays: number;
-        absences: number;
-    };
-};
+import { Visit } from '@/types/visit';
 
 interface KPICardProps {
     title: string;
